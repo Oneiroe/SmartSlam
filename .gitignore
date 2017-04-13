@@ -1,2 +1,5 @@
 # JetBrains IDEs conf folders
 **/.idea/*
+
+# ManagementTelegramBOT credentials
+/ManagementTelegramBOT/credentials.json
