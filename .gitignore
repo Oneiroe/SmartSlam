@@ -3,3 +3,6 @@
 
 # ManagementTelegramBOT credentials
 /ManagementTelegramBOT/credentials.json
+
+# Logs
+/ManagementTelegramBOT/LOG/INFO.log
