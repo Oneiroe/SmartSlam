@@ -1,0 +1,8 @@
+{
+  "pir_pin_board": PIN_BOARD_NUMBER_HERE,
+  "pir_time_interval": SEC_BETWEEN_SENSING,
+  "led_pin_board": PIN_BOARD_NUMBER_HERE,
+  "samples_dir": "DIRECTORY_HERE",
+  "sample_duration": SEC_TO_REC_HERE,
+  "audio_device_hw_number": HW_NUMBER_HERE
+}

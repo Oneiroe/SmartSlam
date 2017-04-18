@@ -1,8 +1,12 @@
 # JetBrains IDEs conf folders
 **/.idea/*
 
-# ManagementTelegramBOT credentials
+# Logs
+**/LOG/*
+
+# Credentials
 /ManagementTelegramBOT/credentials.json
 
-# Logs
-/ManagementTelegramBOT/LOG/INFO.log
+# Settings
+/RaspberryScripts/settings.json
+
