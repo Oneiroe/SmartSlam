@@ -22,7 +22,7 @@ NAME=${BASE}-${i}
 
 do_record () {
     # record
-    arecord -f cd -r 48000 -D hw:1 -d "$1" ${DIR}${NAME}.wav
+    arecord -f cd -r 48000 -D hw:${HW} -d "$1" ${DIR}${NAME}.wav
 }
 
 do_stream () {
