@@ -2,23 +2,13 @@
 
 import sys
 import time
-import random
-import datetime
 import telepot
 import requests
 import json
 import signal
 import logging
 import os
-
-# TODO remove completely prints in favor of logging
-# LOG setup
-logging.basicConfig(filename=os.path.join(os.getcwd(), 'LOG', 'INFO.log'),
-                    level=logging.INFO,
-                    format='%(asctime)-15s '
-                           '%(levelname)s '
-                           '--%(filename)s-- '
-                           '%(message)s')
+import subprocess
 
 
 #########################
@@ -27,7 +17,6 @@ logging.basicConfig(filename=os.path.join(os.getcwd(), 'LOG', 'INFO.log'),
 def signal_handler(signal, frame):
     """ Handles SIGINT, KILL signal [CTRL+C] notifying each client about the BOT closure. """
     logging.info('Closing BOT...')
-    print('Closing BOT...')
     for client in data['known_clients']:
         bot.sendMessage(client, 'Mi sto spegnendo...Vendicami!')
     sys.exit(0)
@@ -42,6 +31,12 @@ def wake_up():
     ip = requests.get('http://showip.net').content
     msg = 'Goooood morning Vietnam! Find me at: ' + str(ip)
     return msg
+
+
+def get_user():
+    """ Get the user who is running the script """
+    # logging.info('Getting user...') #  Not possible because the command is run before log configuration
+    return subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
 
 
 #########################
@@ -61,9 +56,6 @@ def handle(msg):
 
     logging.info('Got command: ' + str(command) + ' From ChatID: ' + str(chat_id))
 
-    print('Got command: %s' % command)
-    print('From ChatID: %s' % chat_id)
-
     if chat_id not in data['known_clients']:
         bot.sendMessage(chat_id, 'vai via!')
         return
@@ -74,7 +66,22 @@ def handle(msg):
         bot.sendMessage(chat_id, 'Comando non riconoscuto')
 
 
-# START UP
+#####################
+# SETUP
+
+# LOG setup
+os.chdir(os.path.join('home', get_user(), 'SmartSlam', 'RaspberryScripts'))
+log_dir = os.path.join(os.getcwd(), 'LOG')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+logging.basicConfig(filename=os.path.join(log_dir, 'INFO.log'),
+                    level=logging.INFO,
+                    format='%(asctime)-15s '
+                           '%(levelname)s '
+                           '--%(filename)s-- '
+                           '%(message)s')
+
+# BOT
 logging.info('Setting up Bot...')
 
 data = json.load(open('credentials.json'))
@@ -92,7 +99,5 @@ for sig in [signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT]:
 logging.info('STARTING LISTENING loop')
 
 bot.message_loop(handle)
-print('I am listening...')
-
 while 1:
     time.sleep(10)
