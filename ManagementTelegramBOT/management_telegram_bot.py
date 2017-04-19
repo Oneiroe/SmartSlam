@@ -70,7 +70,7 @@ def handle(msg):
 # SETUP
 
 # LOG setup
-os.chdir(os.path.join('home', get_user(), 'SmartSlam', 'RaspberryScripts'))
+os.chdir(os.path.join('home', get_user(), 'SmartSlam', 'ManagementTelegramBOT'))
 log_dir = os.path.join(os.getcwd(), 'LOG')
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
