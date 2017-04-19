@@ -11,13 +11,13 @@ import subprocess
 #####################
 
 def led_on():
-    """ Turn on LED """
+    """ Turns on LED """
     logging.info('Turning LED ON...')
     GPIO.output(pin_led, GPIO.HIGH)
 
 
 def led_off():
-    """ Turn off LED """
+    """ Turns off LED """
     logging.info('Turning LED OFF...')
     GPIO.output(pin_led, GPIO.LOW)
 
@@ -40,12 +40,18 @@ def record():
         str(settings['sample_duration']),
         settings['samples_dir']
     ])
-    logging.info('End RECORDING...')
+    logging.info('End RECORDING')
+
+
+def get_user():
+    """ Get the user who is running the script """
+    # logging.info('Getting user...') #  Not possible because the command is run before log configuration
+    return subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
 
 
 #####################
 # SETUP
-
+os.chdir(os.path.join('home', get_user(), 'SmartSlam', 'RaspberryScripts'))
 # LOG setup
 log_dir = os.path.join(os.getcwd(), 'LOG')
 if not os.path.exists(log_dir):
@@ -58,6 +64,8 @@ logging.basicConfig(filename=os.path.join(log_dir, 'INFO.log'),
                            '%(message)s')
 
 logging.info('START')
+logging.info('Working Directory: ' + str(os.path.join('home', get_user(), 'SmartSlam', 'RaspberryScripts')))
+logging.info('LOG Directory: ' + log_dir)
 logging.info('Setting Up...')
 
 settings = json.load(open('settings.json'))
