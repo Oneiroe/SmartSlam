@@ -26,8 +26,14 @@ do_record () {
 }
 
 do_stream () {
-    # "stream to audio output"
+    # stream to audio output
     arecord -D plughw:1,0 -f dat | aplay -f dat
 }
 
+do_label() {
+    # add default label to last recorded file
+    echo "${NAME},default">>${DIR}labels.csv
+}
+
 do_record ${DURATION}
+do_label

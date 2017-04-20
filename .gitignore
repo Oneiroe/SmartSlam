@@ -4,9 +4,13 @@
 # Logs
 **/LOG/*
 
+# DB
+/DB/Samples/
+
 # Credentials
 /ManagementTelegramBOT/credentials.json
 
 # Settings
 /RaspberryScripts/settings.json
+
 
