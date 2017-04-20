@@ -28,7 +28,8 @@ def wake_up():
 
     :return: message to be shown containing the global IP
     """
-    ip = requests.get('http://showip.net').content
+    logging.info('Waking Up...')
+    ip = get_ip()
     msg = 'Goooood morning Vietnam! Find me at: ' + str(ip)
     return msg
 
@@ -45,7 +46,48 @@ def get_ip():
     """ Returns the global IP of the network the raspberry is connected to
     :return: global IP
     """
-    return requests.get('http://showip.net').content
+    link = 'http://showip.net'
+    max_attempts = 10  # Maximal number of attempts for an API call before giving up
+    connection_timeout = 3  # Timeout before raise a timeout exception
+    retry_timeout = 5  # Timeout before retry a request after receiving a 50x HTTP error
+
+    logging.info('Retrieving Global IP...')
+    for attempt in range(max_attempts):
+        try:
+            request = requests.get(link, timeout=connection_timeout)
+            request.raise_for_status()  # Rise exception if response code different from 200
+            ip = request.content
+            return ip
+
+        # In the event of a network problem (e.g. DNS failure, refused connection, etc)
+        except requests.exceptions.ConnectionError as err:
+            logging.warning(str(err) + ' -- line: ' + str(sys.exc_info()[-1].tb_lineno))
+            time.sleep(retry_timeout)  # in sec
+            continue
+
+        # Triggered Timeout
+        except requests.exceptions.Timeout as err:
+            logging.warning(str(err) + ' -- line: ' + str(sys.exc_info()[-1].tb_lineno))
+            time.sleep(retry_timeout)  # in sec
+            continue
+
+        # Response code different from 200
+        except requests.exceptions.HTTPError as err:
+            logging.warning(str(err) + ' -- line: ' + str(sys.exc_info()[-1].tb_lineno))
+            if request.status_code > 500:
+                # Probable connection error, wait and retry
+                time.sleep(retry_timeout)  # in sec
+                continue
+            else:
+                return 'Houston, We\'ve Got a Problem...Try again later'
+
+        # Unknown ambiguous request error
+        except requests.exceptions.RequestException as err:
+            logging.warning(str(err) + ' -- line: ' + str(sys.exc_info()[-1].tb_lineno))
+            return 'Houston, We\'ve Got a Problem...Try again later'
+
+    logging.warning('Request MAX_ATTEMPTS reached')
+    return 'Houston, We\'ve Got a Problem...Try again later'
 
 
 #########################
@@ -89,8 +131,9 @@ data = json.load(open('credentials.json'))
 bot = telepot.Bot(data['telegram_bot'])
 data['known_clients'] = set(data['known_clients'])
 
+wake_up_msg = wake_up()
 for client in data['known_clients']:
-    bot.sendMessage(client, wake_up())
+    bot.sendMessage(client, wake_up_msg)
 
 for sig in [signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT]:
     signal.signal(sig, signal_handler)
