@@ -11,14 +11,9 @@ DIR="$3"
 cd ${DIR}
 
 BASE=sample
-i=0
-if [ -e ${BASE}-${i}.wav ] ; then
-    i=1
-    while [ -e ${BASE}-${i}.wav ] ; do
-        i=$((i+1))
-    done
-fi
-NAME=${BASE}-${i}
+# Timestamp is year-mount-day-hour+minute+second
+TIMESTAMP=$(date "+%Y-%m-%d-%H%M%S")
+NAME=${BASE}-${TIMESTAMP}
 
 do_record () {
     # record
