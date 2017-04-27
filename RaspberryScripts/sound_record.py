@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import subprocess
+import csv
 
 
 #####################
@@ -30,16 +31,45 @@ def led_switch():
         GPIO.output(pin_led, GPIO.LOW)
 
 
+def label(sample_name, labels_file, samples_dir, label):
+    """ Adds label to a recorded file"""
+    logging.info('LABELLING record')
+
+    labels_full_path = os.path.join(samples_dir, labels_file)
+    with open(labels_full_path, 'a', newline='') as csvfile:
+        csv.writer(csvfile).writerow([sample_name, label])
+
+
 def record():
     """ Records sound """
-    logging.info('Start RECORDING...duration:' + str(settings['sample_duration']))
+    logging.info('Start RECORDING')
+
+    base_name = 'sample'
+    timestamp = time.strftime('%Y-%m-%d-%H%M%S')
+    name = base_name + '-' + timestamp
+    hw = str(settings['audio_device_hw_number'])
+    duration = str(settings['sample_duration'])
+    samples_dir = settings['samples_dir']
+    full_output_path = os.path.join(samples_dir, name + '.wav')
+
     subprocess.call([
-        "sh",
-        "mic.sh",
-        str(settings['audio_device_hw_number']),
-        str(settings['sample_duration']),
-        settings['samples_dir']
+        "arecord",
+        "-f",  # Quality
+        "cd",
+        "-r",  # Sample Rate
+        "48000",
+        "-D",  # Device
+        "hw:" + hw,
+        "-d",  # Duration
+        duration,
+        full_output_path  # Output file
     ])
+
+    # TODO logging recording response in case of error
+    # TODO timeout in case of error
+
+    label(name, 'labels.csv', samples_dir, 'default')
+
     logging.info('End RECORDING')
 
 
@@ -51,7 +81,7 @@ def get_user():
 
 #####################
 # SETUP
-os.chdir(os.path.join('home', get_user(), 'SmartSlam', 'RaspberryScripts'))
+os.chdir(os.path.join(os.path.abspath(os.sep), 'home', get_user(), 'SmartSlam', 'RaspberryScripts'))
 # LOG setup
 log_dir = os.path.join(os.getcwd(), 'LOG')
 if not os.path.exists(log_dir):
@@ -63,9 +93,7 @@ logging.basicConfig(filename=os.path.join(log_dir, 'INFO.log'),
                            '--%(filename)s-- '
                            '%(message)s')
 
-logging.info('START')
-logging.info('Working Directory: ' + str(os.path.join('home', get_user(), 'SmartSlam', 'RaspberryScripts')))
-logging.info('LOG Directory: ' + log_dir)
+logging.info('START #############################################################')
 logging.info('Setting Up...')
 
 settings = json.load(open('settings.json'))
