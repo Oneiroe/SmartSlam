@@ -7,6 +7,12 @@ import logging
 import os
 import subprocess
 import csv
+import sys
+
+# USER who is running the script
+USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+sys.path.insert(0, os.path.join(os.path.abspath(os.sep), 'home', USER, 'SmartSlam'))
+import ManagementTelegramBOT.management_telegram_bot as telegram_bot
 
 
 #####################
@@ -67,21 +73,19 @@ def record():
 
     # TODO logging recording response in case of error
     # TODO timeout in case of error
+    logging.info('End RECORDING')
 
     label(name, 'labels.csv', samples_dir, 'default')
 
-    logging.info('End RECORDING')
-
-
-def get_user():
-    """ Get the user who is running the script """
-    # logging.info('Getting user...') #  Not possible because the command is run before log configuration
-    return subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+    logging.info('Notifying users of new access')
+    telegram_bot.notify_audio_sample(name, full_output_path, duration)
 
 
 #####################
 # SETUP
-os.chdir(os.path.join(os.path.abspath(os.sep), 'home', get_user(), 'SmartSlam', 'RaspberryScripts'))
+
+
+os.chdir(os.path.join(os.path.abspath(os.sep), 'home', USER, 'SmartSlam', 'RaspberryScripts'))
 # LOG setup
 log_dir = os.path.join(os.getcwd(), 'LOG')
 if not os.path.exists(log_dir):

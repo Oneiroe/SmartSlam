@@ -9,6 +9,7 @@ import signal
 import logging
 import os
 import subprocess
+import threading
 
 
 #########################
@@ -38,6 +39,22 @@ def get_user():
     """ Get the user who is running the script """
     # logging.info('Getting user...') #  Not possible because the command is run before log configuration
     return subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+
+
+def notify_audio_sample(sample_name, sample_path, duration):
+    """ Notify the users of a new audio record """
+    logging.info('New audio sample')
+
+    msg = 'New audio sample: ' + sample_name
+    file = open(sample_path, 'rb')
+    for user in data['users']:
+        logging.info('Sending message notification')
+        bot.sendMessage(user, msg)
+
+        logging.info('Sending audio file in another thread')
+        threading.Thread(target=bot.sendAudio, args=(user, file, None, duration)).start()
+
+        # TODO select label to apply
 
 
 #########################
@@ -111,36 +128,42 @@ def handle(msg):
 #####################
 # SETUP
 
-# LOG setup
-os.chdir(os.path.join('home', get_user(), 'SmartSlam', 'ManagementTelegramBOT'))
-log_dir = os.path.join(os.getcwd(), 'LOG')
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-logging.basicConfig(filename=os.path.join(log_dir, 'INFO.log'),
-                    level=logging.INFO,
-                    format='%(asctime)-15s '
-                           '%(levelname)s '
-                           '--%(filename)s-- '
-                           '%(message)s')
-
-# BOT
-logging.info('Setting up Bot...')
+os.chdir(os.path.join(os.path.abspath(os.sep), 'home', get_user(), 'SmartSlam', 'ManagementTelegramBOT'))
 
 data = json.load(open('credentials.json'))
-
-bot = telepot.Bot(data['telegram_bot'])
 data['known_clients'] = set(data['known_clients'])
+bot = telepot.Bot(data['telegram_bot'])
 
-wake_up_msg = wake_up()
-for client in data['known_clients']:
-    bot.sendMessage(client, wake_up_msg)
 
-for sig in [signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT]:
-    signal.signal(sig, signal_handler)
+def main():
+    # LOG setup
+    log_dir = os.path.join(os.getcwd(), 'LOG')
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    logging.basicConfig(filename=os.path.join(log_dir, 'INFO.log'),
+                        level=logging.INFO,
+                        format='%(asctime)-15s '
+                               '%(levelname)s '
+                               '--%(filename)s-- '
+                               '%(message)s')
 
-# STARTING WAITING CYCLE
-logging.info('STARTING LISTENING loop')
+    # BOT
+    logging.info('Setting up Bot...')
 
-bot.message_loop(handle)
-while 1:
-    time.sleep(10)
+    wake_up_msg = wake_up()
+    for client in data['known_clients']:
+        bot.sendMessage(client, wake_up_msg)
+
+    for sig in [signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT]:
+        signal.signal(sig, signal_handler)
+
+    # STARTING WAITING CYCLE
+    logging.info('STARTING LISTENING loop')
+
+    bot.message_loop(handle)
+    while 1:
+        time.sleep(10)
+
+
+if __name__ == "__main__":
+    main()
