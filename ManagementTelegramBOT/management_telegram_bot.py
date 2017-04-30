@@ -52,7 +52,7 @@ def notify_audio_sample(sample_name, sample_path, duration):
         bot.sendMessage(user, msg)
 
         logging.info('Sending audio file in another thread')
-        threading.Thread(target=bot.sendAudio, args=(user, file, None, duration)).start()
+        threading.Thread(target=bot.sendVoice, args=(user, file, sample_name, duration)).start()
 
         # TODO select label to apply
 
