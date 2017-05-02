@@ -6,6 +6,7 @@
 
 # DB
 /DB/Samples/
+/DB/smartSlamDB.sqlite
 
 # Credentials
 /ManagementTelegramBOT/credentials.json
