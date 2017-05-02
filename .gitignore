@@ -1,6 +1,9 @@
 # JetBrains IDEs conf folders
 **/.idea/*
 
+# Python temp and execution folders
+**/__pycache__/*
+
 # Logs
 **/LOG/*
 
