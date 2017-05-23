@@ -36,6 +36,8 @@ def load_balanced_dataset():
     samples = dict()  # key: sample, value: label
     with open(labels_path, 'r', newline='') as csvfile:
         for record in csv.reader(csvfile):
+            if record[1] == 'default':
+                continue
             labels.setdefault(record[1], set()).add(record[0])
             samples[record[0]] = record[1]
 
@@ -54,6 +56,8 @@ def load_balanced_dataset():
     for filename in chosen:
         filename += '.wav'
         if os.path.exists(os.path.join(directory, filename)):
+            if samples[filename[:-4]] == 'default':
+                continue
             y, sr = librosa.core.load(os.path.join(directory, filename), sr=48000, mono=True)
             mel = librosa.feature.melspectrogram(y=y, sr=sr)
             mfcc = librosa.feature.mfcc(y=y, sr=sr)
@@ -84,12 +88,16 @@ def load_full_dataset():
     samples = dict()  # key: sample, value: label
     with open(labels_path, 'r', newline='') as csvfile:
         for record in csv.reader(csvfile):
+            if record[1] == 'default':
+                continue
             labels.setdefault(record[1], set()).add(record[0])
             samples[record[0]] = record[1]
 
     for filename in os.listdir(directory):
         if filename.endswith(".wav"):
             if filename[:-4] in samples:
+                if samples[filename[:-4]] == 'default':
+                    continue
                 y, sr = librosa.core.load(os.path.join(directory, filename), sr=48000, mono=True)
                 mel = librosa.feature.melspectrogram(y=y, sr=sr)
                 mfcc = librosa.feature.mfcc(y=y, sr=sr)
@@ -287,7 +295,8 @@ test_y = np.vstack(test_data["one_hot_encoding"])
 
 ####################################################################################
 # set variables to train, global variables, IN and OUT
-BATCH_SIZE = int(train_data.shape[0] / 20)
+# BATCH_SIZE = int(train_data.shape[0] / 20)
+BATCH_SIZE = 1
 NUM_CHANNELS = 1
 NUM_LABELS = 2
 INPUT_SHAPE = (2813, 128)
@@ -358,7 +367,7 @@ optimizer = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss, global
 
 # Predictions for the minibatch, validati
 # on set and test set.
-train_prediction = tf.nn.softmax(logits)
+train_prediction = tf.nn.softmax(logits, name='train_prediction')
 # We'll compute them only once in a while by calling their {eval()} method.
 validation_prediction = tf.nn.softmax(model(validation_data_node))
 test_prediction = tf.nn.softmax(model(test_data_node))
@@ -376,8 +385,8 @@ s.as_default()
 
 # TensorBoard nodes initialization
 merged = tf.summary.merge_all()
-train_writer = tf.summary.FileWriter(os.path.join('Classifier','LOG'), s.graph)
-
+# train_writer = tf.summary.FileWriter(os.path.join('Classifier','LOG'), s.graph)
+train_writer = tf.summary.FileWriter(os.path.join('C:', 'Users', 'Alessio', 'Desktop', 'LOG'), s.graph)
 
 # Initialize all the variables we defined above.
 # tf.initialize_all_variables().run()
@@ -385,7 +394,7 @@ tf.global_variables_initializer().run()
 
 offset = 0
 # This code uses the entire training set instead of mini batches
-for i in range(100):
+for i in range(300):
     # Train over the first 1/4th of our training set.
     #     steps = int(train_size / BATCH_SIZE)
     # for step in xrange(steps):
@@ -429,3 +438,9 @@ for i, v in enumerate(res.tolist()):
         wrong.append(i)
 print('right:' + str(len(right)))
 print('wrong:' + str(len(wrong)))
+
+####################################################################################
+# Save model
+saver = tf.train.Saver()
+save_path = saver.save(s, os.path.join('Classifier', 'model', 'model_door_only.ckpt'))
+print("Model saved in file: %s" % save_path)
