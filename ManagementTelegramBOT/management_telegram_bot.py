@@ -46,15 +46,18 @@ def notify_audio_sample(sample_name, sample_path, duration):
     logging.info('New audio sample')
 
     msg = 'New audio sample: ' + sample_name
+    send_file = False
+
     file = open(sample_path, 'rb')
     for user in data['users']:
         logging.info('Sending message notification')
         bot.sendMessage(user, msg)
 
-        logging.info('Sending audio file in another thread')
-        threading.Thread(target=bot.sendVoice, args=(user, file, sample_name, duration)).start()
+        if send_file:
+            logging.info('Sending audio file in another thread')
+            threading.Thread(target=bot.sendVoice, args=(user, file, sample_name, duration)).start()
 
-        # TODO select label to apply
+    # TODO select label to apply
 
 
 #########################
