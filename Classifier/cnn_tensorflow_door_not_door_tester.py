@@ -7,7 +7,7 @@ import random
 import numpy as np
 
 
-def load_random_sample(num):
+def create_random_sample(num):
     """ Loads a random sample of num elements """
     dataset = pandas.DataFrame(columns=['data', 'target', 'mels', 'mfcc'])
     dataset.target = dataset.target.astype(str)
@@ -42,50 +42,6 @@ def load_random_sample(num):
         dataset = dataset.append(pandas.DataFrame(mapping), ignore_index=True)
         print('>>>>> Loading file : ' + filename + ' | label: ' + target)
     return dataset
-
-
-def freeze_graph(model_folder, output_graph):
-    """ froze a saved model into a self contained file"""
-    print('>>> freezing model')
-    # We retrieve our checkpoint fullpath
-    checkpoint = tf.train.get_checkpoint_state(model_folder)
-    input_checkpoint = checkpoint.model_checkpoint_path
-
-    # We precise the file fullname of our freezed graph
-    # absolute_model_folder = os.path.abspath(model_folder)
-    # output_graph = os.path.join(absolute_model_folder, 'frozen_model.pb')
-    # output_graph = os.path.join('C:\\', 'Users', 'Alessio', 'Desktop', 'LOG', 'frozen_model', 'frozen_model.pb')
-
-    # Before exporting our graph, we need to precise what is our output node
-    # This is how TF decides what part of the Graph he has to keep and what part it can dump
-    # NOTE: this variable is plural, because you can have multiple output nodes
-    output_node_names = "softmax_tensor"
-
-    # We clear devices to allow TensorFlow to control on which device it will load operations
-    clear_devices = True
-
-    # We import the meta graph and retrieve a Saver
-    saver = tf.train.import_meta_graph(input_checkpoint + '.meta', clear_devices=clear_devices)
-
-    # We retrieve the protobuf graph definition
-    graph = tf.get_default_graph()
-    input_graph_def = graph.as_graph_def()
-
-    # We start a session and restore the graph weights
-    with tf.Session() as sess:
-        saver.restore(sess, input_checkpoint)
-
-        # We use a built-in TF helper to export variables to constants
-        output_graph_def = tf.graph_util.convert_variables_to_constants(
-            sess,  # The session is used to retrieve the weights
-            input_graph_def,  # The graph_def is used to retrieve the nodes
-            output_node_names.split(",")  # The output node names are used to select the usefull nodes
-        )
-
-        # Finally we serialize and dump the output graph to the filesystem
-        with tf.gfile.GFile(output_graph, "wb") as f:
-            f.write(output_graph_def.SerializeToString())
-        print("%d ops in the final graph." % len(output_graph_def.node))
 
 
 def load_graph(frozen_graph_filename):
@@ -135,7 +91,7 @@ def evaluate(graph, mels, label):
     with tf.Session(graph=graph) as sess:
         # Note: we didn't initialize/restore anything, everything is stored in the graph_def
         y_out = sess.run(y, feed_dict={
-            x: [audio_feature]  # < 45
+            x: [audio_feature]
         })
 
         print('true value:' + str(true_result))
@@ -146,26 +102,35 @@ def evaluate(graph, mels, label):
             print('Result: WRONG')
 
 
-####################################################################################
-# Freezing
-print('> Freezing model')
-freeze_graph(
-    os.path.join('Classifier', 'model', 'cnn3bis', 'convnet_model'),
-    os.path.join('Classifier', 'model', 'freezed', 'frozen_model.pb'),
-)
+def predict(graph, mels):
+    """ Returns the eximation of the given audio file according to the model """
+
+    audio_feature = np.asanyarray(list(mels.flatten()), dtype=np.float32)
+
+    x = graph.get_tensor_by_name('prefix/input:0')
+    y = graph.get_tensor_by_name('prefix/softmax_tensor:0')
+
+    with tf.Session(graph=graph) as sess:
+        y_out = sess.run(y, feed_dict={
+            x: [audio_feature]  # < 45
+        })
+
+        print('predictions:' + str(y_out))
+        return y_out[0].argmax()
+
 
 ####################################################################################
 # Load model
 print('> Load model')
-graph = load_graph(os.path.join('Classifier', 'model', 'freezed', 'frozen_model.pb'))
+graph = load_graph(os.path.join('Classifier', 'model', 'door_not_door', 'freezed', 'frozen_model.pb'))
 
 ####################################################################################
 # Load dataset
 print('> Loading dataset')
 #   CREATE
-ds = load_random_sample(2)
+ds = create_random_sample(2)
 #   OPEN
-# ds = pandas.read_pickle(os.path.join('Classifier', "full_dataset_48000_no_default.pickle"))
+# ds = pandas.read_pickle(os.path.join('Classifier', "balanced_dataset_48000_door_only.pickle"))
 
 ####################################################################################
 # Evaluate
