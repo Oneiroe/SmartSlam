@@ -1,9 +1,6 @@
 import tensorflow as tf
 import pandas
-import os
-import csv
 import librosa
-import random
 import numpy as np
 
 tf.logging.set_verbosity(tf.logging.INFO)

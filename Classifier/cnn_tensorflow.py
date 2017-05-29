@@ -148,44 +148,11 @@ def freeze_graph(model_folder, output_graph):
         print("%d ops in the final graph." % len(output_graph_def.node))
 
 
-def load_graph(frozen_graph_filename):
-    """ Load a frozen graph ready to be used"""
-    # We load the protobuf file from the disk and parse it to retrieve the
-    # unserialized graph_def
-    print('>>> Loading graph...')
-    with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
-        graph_def = tf.GraphDef()
-        graph_def.ParseFromString(f.read())
-
-    # Then, we can use again a convenient built-in function to import a graph_def into the
-    # current default Graph
-    with tf.Graph().as_default() as graph:
-        tf.import_graph_def(
-            graph_def,
-            input_map=None,
-            return_elements=None,
-            name="prefix",
-            op_dict=None,
-            producer_op_list=None
-        )
-    return graph
-
-
-def evaluate(graph, mels, label):
+def evaluate(graph, mels, label, mapping):
     """ Takes the input audio file/feature and classify it against the model """
 
     audio_feature = np.asanyarray(list(mels.flatten()), dtype=np.float32)
 
-    mapping = {
-        'alessio': 1,
-        'andrea': 1,
-        'debora': 1,
-        'mamma': 1,
-        'papa': 1,
-        'nobody': 0,
-        'exit': 1,
-        'bell': 1,
-    }
     true_result = mapping[label]
 
     x = graph.get_tensor_by_name('prefix/input:0')
@@ -205,40 +172,13 @@ def evaluate(graph, mels, label):
             print('Result: WRONG')
 
 
-def predict(graph, mels):
-    """ Returns the eximation of the given audio file according to the model """
-
-    audio_feature = np.asanyarray(list(mels.flatten()), dtype=np.float32)
-
-    x = graph.get_tensor_by_name('prefix/input:0')
-    y = graph.get_tensor_by_name('prefix/softmax_tensor:0')
-
-    with tf.Session(graph=graph) as sess:
-        y_out = sess.run(y, feed_dict={
-            x: [audio_feature]  # < 45
-        })
-
-        print('predictions:' + str(y_out))
-        return y_out[0].argmax()
-
-
-def to1hot(row):
-    """ Make the input a 1-hot vector """
-    mapping = {
-        'alessio': 1,
-        'andrea': 1,
-        'debora': 1,
-        'mamma': 1,
-        'papa': 1,
-        'nobody': 0,
-        'exit': 1,
-        'bell': 1,
-    }
+def to_numeric(row, mapping):
+    """ Return the numeric index of the corresponding label """
     return mapping[row]
 
 
-def model(features, labels, mode):
-    """ The Model definition of door/not-door recognition """
+def model(features, labels, mode, params):
+    """ The Model definition """
     # 2D convolution, with 'SAME' padding (i.e. the output feature map has
     # the same size as the input). Note that {strides} is a 4D array whose
     # shape matches the data layout: [image index, y, x, depth].
@@ -312,10 +252,11 @@ def model(features, labels, mode):
         name='dropout_layer'
     )
 
+    labels_num = params['labels_num']
     # Logits Layer
     logits = tf.layers.dense(
         inputs=dropout,
-        units=2,
+        units=labels_num,
         name='logits_layer'
     )
 
@@ -324,7 +265,7 @@ def model(features, labels, mode):
 
     # Calculate Loss (for both TRAIN and EVAL modes)
     if mode != learn.ModeKeys.INFER:
-        onehot_labels = tf.one_hot(indices=tf.cast(labels, tf.int32), depth=2, name='one_hot_labels')
+        onehot_labels = tf.one_hot(indices=tf.cast(labels, tf.int32), depth=labels_num, name='one_hot_labels')
         loss = tf.losses.softmax_cross_entropy(
             onehot_labels=onehot_labels,
             logits=logits
@@ -355,26 +296,31 @@ def model(features, labels, mode):
     )
 
 
-def train(ds):
+def train(ds, model_name, mapping):
     """ Train with the given dataset recognizing of door/not-door """
     # Divide the dataset in training/testing/validation sets
     # dataset proportion
     # 0.78 ~ 75 % - Train
     # 0.14 ~ 15 % - Validation
     # 0.07 ~ 10 % - Test
+    ds["target_numeric"] = ds.target.apply(to_numeric, args=[mapping])
+    ds["mels_flatten"] = ds.mels.apply(lambda mels: mels.flatten())
+    labels_num = len(mapping)
+
     index_train = int(len(ds) * 0.80)
     index_validation = index_train + int(len(ds) * 0.20)
 
     # Load training and eval data
     train_data = np.asanyarray(list(ds.mels_flatten[0:index_train]), dtype=np.float32)
-    train_labels = np.asanyarray(list(ds.one_hot_encoding[0:index_train]))
+    train_labels = np.asanyarray(list(ds.target_numeric[0:index_train]))
     eval_data = np.asanyarray(list(ds.mels_flatten[index_train:index_validation]), dtype=np.float32)  # Returns np.array
-    eval_labels = np.asanyarray(list(ds.one_hot_encoding[index_train:index_validation]))
+    eval_labels = np.asanyarray(list(ds.target_numeric[index_train:index_validation]))
 
     # Create the Estimator
     door_classifier = learn.Estimator(
         model_fn=model,
-        model_dir=os.path.join('Classifier', 'model', 'door_not_door', 'convnet_model')
+        params={'labels_num': labels_num},
+        model_dir=os.path.join('Classifier', 'model', model_name, 'convnet_model')
     )
 
     # Set up logging for predictions
@@ -406,12 +352,14 @@ def train(ds):
 
     # Freeze model
     freeze_graph(
-        os.path.join('Classifier', 'model', 'door_not_door', 'convnet_model'),
-        os.path.join('Classifier', 'model', 'door_not_door', 'freezed', 'frozen_model_door_not_door.pb'),
+        os.path.join('Classifier', 'model', model_name, 'convnet_model'),
+        os.path.join('Classifier', 'model', model_name, 'freezed', 'frozen_model.pb'),
     )
 
 
 def main(unused_argv):
+    ####################################################################################
+    # This main is a program logic example
     ####################################################################################
     # Load dataset
     print('loading dataset...')
@@ -425,25 +373,30 @@ def main(unused_argv):
     print("This is the error rate if we always guess the majority: %.2f" % (
         1 - max(
             ds[ds["target"] == 'nobody'].index.size,
-            ds[ds["target"] == 'andrea'].index.size +
-            ds[ds["target"] == 'exit'].index.size +
-            ds[ds["target"] == 'debora'].index.size +
-            ds[ds["target"] == 'alessio'].index.size +
-            ds[ds["target"] == 'mamma'].index.size +
-            ds[ds["target"] == 'papa'].index.size +
+            ds[ds["target"] == 'andrea'].index.size,
+            ds[ds["target"] == 'exit'].index.size,
+            ds[ds["target"] == 'debora'].index.size,
+            ds[ds["target"] == 'alessio'].index.size,
+            ds[ds["target"] == 'mamma'].index.size,
+            ds[ds["target"] == 'papa'].index.size,
             ds[ds["target"] == 'bell'].index.size,
         ) / (float)(ds.index.size)))
 
     ####################################################################################
-
-    ds["one_hot_encoding"] = ds.target.apply(to1hot)
-    ds["mels_flatten"] = ds.mels.apply(lambda mels: mels.flatten())
+    mapping = {
+        'nobody': 0,
+        'alessio': 1,
+        'andrea': 2,
+        'debora': 3,
+        'mamma': 4,
+        'papa': 5,
+        'exit': 6,
+        'bell': 7,
+    }
 
     ####################################################################################
     # Train
-    to_train = True
-    if to_train:
-        train(ds)
+    train(ds, 'test', mapping)
 
 
 if __name__ == "__main__":
