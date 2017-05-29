@@ -305,7 +305,7 @@ def train(ds, model_name, mapping):
     # 0.07 ~ 10 % - Test
     ds["target_numeric"] = ds.target.apply(to_numeric, args=[mapping])
     ds["mels_flatten"] = ds.mels.apply(lambda mels: mels.flatten())
-    labels_num = len(mapping)
+    labels_num = len(set(mapping.values()))
 
     index_train = int(len(ds) * 0.80)
     index_validation = index_train + int(len(ds) * 0.20)
