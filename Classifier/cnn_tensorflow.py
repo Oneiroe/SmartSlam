@@ -11,9 +11,11 @@ from tensorflow.contrib.learn.python.learn.estimators import model_fn as model_f
 tf.logging.set_verbosity(tf.logging.INFO)
 
 
-def create_balanced_dataset():
-    """ Load samples and relative label randomly, such to have a balanced number of entity for each label 
-    
+def create_balanced_dataset(targets_mapping, discriminant_targets=[]):
+    """ Load samples and relative label randomly, such to have a balanced number of entity for each label
+
+    :param targets_mapping:
+    :param discriminant_targets: is not -1, ds will have at least all the elements mapped to this target
     :return: pandas DataFrame
     """
     print('Creating balanced dataset')
@@ -27,14 +29,18 @@ def create_balanced_dataset():
     samples = dict()  # key: sample, value: label
     with open(labels_path, 'r', newline='') as csvfile:
         for record in csv.reader(csvfile):
-            if record[1] == 'default':
+            if record[1] not in targets_mapping.keys():
                 continue
             labels.setdefault(record[1], set()).add(record[0])
             samples[record[0]] = record[1]
 
-    # extra = {'label', 'nobody', 'default', 'exit'}
-    extra = {'label', 'nobody', 'default'}
-    max_samples = sum(len(labels[x]) for x in labels.keys() - extra)
+    inv_target_mapping = Counter(set(targets_mapping.values()))
+    for key, value in labels.items():
+        inv_target_mapping[targets_mapping[key]] += len(value)
+    max_samples = inv_target_mapping.most_common()[-1][1]
+    if len(discriminant_targets) > 0:
+        max_samples = max([max_samples,
+                           sum(inv_target_mapping[w] for w in discriminant_targets)])
 
     chosen = []
     for label in labels:

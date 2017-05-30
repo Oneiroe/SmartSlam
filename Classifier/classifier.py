@@ -2,6 +2,7 @@ import tensorflow as tf
 import pandas
 import librosa
 import numpy as np
+import os
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -74,3 +75,36 @@ def predict(audio_path, frozen_model_path, mapping):
 
         print('predictions:' + str(y_out))
         return mapping[y_out[0].argmax()]
+
+
+def hierarchical_predict(audio_path):
+    """ Predict the class of the given audio file according the whole hierarchical model """
+    model_door_not_door = os.path.join('Classifier', 'model', 'door_not_door', 'freezed', 'frozen_model.pb')
+    model_person_not_person = os.path.join('Classifier', 'model', 'person_not_person', 'freezed', 'frozen_model.pb')
+    model_only_people = os.path.join('Classifier', 'model', 'only_people', 'freezed', 'frozen_model.pb')
+
+    mapping_door_not_door = {
+        0: 'nobody',
+        1: 'door',
+    }
+    mapping_person_not_person = {
+        2: 'person',
+        0: 'exit',
+        1: 'bell',
+    }
+    mapping_only_people = {
+        0: 'alessio',
+        1: 'andrea',
+        2: 'debora',
+        3: 'mamma',
+        4: 'papa',
+    }
+
+    if predict(audio_path, model_door_not_door, mapping_door_not_door) == 'nobody':
+        return 'nobody'
+    else:
+        intermediate_prediction = predict(audio_path, model_person_not_person, mapping_person_not_person)
+        if intermediate_prediction in ['bell', 'exit']:
+            return intermediate_prediction
+        else:
+            return predict(audio_path, model_only_people, mapping_only_people)
