@@ -4,6 +4,8 @@ import librosa
 import csv
 import numpy as np
 import random
+import logging
+from collections import Counter
 import tensorflow as tf
 from tensorflow.contrib import learn
 from tensorflow.contrib.learn.python.learn.estimators import model_fn as model_fn_lib
@@ -18,7 +20,7 @@ def create_balanced_dataset(targets_mapping, discriminant_targets=[]):
     :param discriminant_targets: is not -1, ds will have at least all the elements mapped to this target
     :return: pandas DataFrame
     """
-    print('Creating balanced dataset')
+    logging.info('Creating balanced dataset')
     dataset = pandas.DataFrame(columns=['data', 'target', 'mels', 'mfcc'])
     dataset.target = dataset.target.astype(str)
 
@@ -72,6 +74,7 @@ def create_balanced_dataset(targets_mapping, discriminant_targets=[]):
 
 def create_random_sample(num):
     """ Loads a random sample of num elements """
+    logging.info('Creating random dataset of %i element' % num)
     dataset = pandas.DataFrame(columns=['data', 'target', 'mels', 'mfcc'])
     dataset.target = dataset.target.astype(str)
 
@@ -103,7 +106,7 @@ def create_random_sample(num):
             'mfcc': [mfcc]
         }
         dataset = dataset.append(pandas.DataFrame(mapping), ignore_index=True)
-        print('>>>>> Loading file : ' + filename + ' | label: ' + target)
+        # print('>>>>> Loading file : ' + filename + ' | label: ' + target)
     return dataset
 
 
@@ -112,12 +115,13 @@ def save_dataset(dataset, output_path):
     :param dataset: pandas DataFrame
     :param output_path: path adn file name of output
     """
+    logging.info('Saving dataset to pickle file :' + output_path)
     pandas.to_pickle(dataset, output_path)
 
 
 def freeze_graph(model_folder, output_graph):
     """ Freeze a saved model into a self contained file"""
-    print('>>> freezing model')
+    logging.info('Freezing model : ' + output_graph)
     # We retrieve our checkpoint fullpath
     checkpoint = tf.train.get_checkpoint_state(model_folder)
     input_checkpoint = checkpoint.model_checkpoint_path
@@ -151,12 +155,12 @@ def freeze_graph(model_folder, output_graph):
         # Finally we serialize and dump the output graph to the filesystem
         with tf.gfile.GFile(output_graph, "wb") as f:
             f.write(output_graph_def.SerializeToString())
-        print("%d ops in the final graph." % len(output_graph_def.node))
+        logging.info("%d ops in the final graph." % len(output_graph_def.node))
 
 
 def evaluate(graph, mels, label, mapping):
-    """ Takes the input audio file/feature and classify it against the model """
-
+    """ Check correctness of a file classification """
+    logging.info('Evaluating audio classification')
     audio_feature = np.asanyarray(list(mels.flatten()), dtype=np.float32)
 
     true_result = mapping[label]
@@ -170,21 +174,24 @@ def evaluate(graph, mels, label, mapping):
             x: [audio_feature]
         })
 
-        print('true value:' + str(true_result))
-        print('predictions:' + str(y_out))
+        logging.info('true value:' + str(true_result))
+        logging.info('predicted value:' + str(y_out[0].argmax()))
+        logging.info('predictions:' + str(y_out))
         if y_out[0].argmax() == true_result:
-            print('Result: CORRECT')
+            return True
         else:
-            print('Result: WRONG')
+            return False
 
 
 def to_numeric(row, mapping):
     """ Return the numeric index of the corresponding label """
+    logging.debug('Making numeric label')
     return mapping[row]
 
 
 def model(features, labels, mode, params):
     """ The Model definition """
+    logging.info('Model definition')
     # 2D convolution, with 'SAME' padding (i.e. the output feature map has
     # the same size as the input). Note that {strides} is a 4D array whose
     # shape matches the data layout: [image index, y, x, depth].
@@ -207,7 +214,7 @@ def model(features, labels, mode, params):
         activation=tf.nn.relu,
         name='conv1_layer'
     )
-    print("conv1 shape: %s" % conv1.get_shape())
+    logging.info("conv1 shape: %s" % conv1.get_shape())
 
     # Pooling Layer #1
     pool1 = tf.layers.max_pooling2d(
@@ -216,7 +223,7 @@ def model(features, labels, mode, params):
         strides=2,
         name='pool1_layer'
     )
-    print("pool1 shape: %s" % pool1.get_shape())
+    logging.info("pool1 shape: %s" % pool1.get_shape())
 
     # Convolutional Layer #2
     conv2 = tf.layers.conv2d(
@@ -227,7 +234,7 @@ def model(features, labels, mode, params):
         activation=tf.nn.relu,
         name='conv2_layer'
     )
-    print("conv2 shape: %s" % conv2.get_shape())
+    logging.info("conv2 shape: %s" % conv2.get_shape())
 
     # Pooling Layer #2
     pool2 = tf.layers.max_pooling2d(
@@ -236,7 +243,7 @@ def model(features, labels, mode, params):
         strides=2,
         name='pool2_layer'
     )
-    print("pool2 shape: %s" % pool2.get_shape())
+    logging.info("pool2 shape: %s" % pool2.get_shape())
 
     # Dense Layer
 
@@ -304,6 +311,7 @@ def model(features, labels, mode, params):
 
 def train(ds, model_name, mapping):
     """ Train with the given dataset recognizing of door/not-door """
+    logging.info('Training')
     # Divide the dataset in training/testing/validation sets
     # dataset proportion
     # 0.78 ~ 75 % - Train
@@ -354,56 +362,10 @@ def train(ds, model_name, mapping):
         metrics=metrics,
         batch_size=5
     )
-    print(eval_results)
+    logging.info(eval_results)
 
     # Freeze model
     freeze_graph(
         os.path.join('Classifier', 'model', model_name, 'convnet_model'),
-        os.path.join('Classifier', 'model', model_name, 'freezed', 'frozen_model.pb'),
+        os.path.join('Classifier', 'model', model_name, 'frozen', 'frozen_model.pb'),
     )
-
-
-def main(unused_argv):
-    ####################################################################################
-    # This main is a program logic example
-    ####################################################################################
-    # Load dataset
-    print('loading dataset...')
-    #   CREATE
-    # ds = create_balanced_dataset()
-    #   OPEN
-    ds = pandas.read_pickle(os.path.join('Classifier', "balanced_dataset_door_not_door.pickle"))
-    #   WRITE FILE
-    # save_dataset(ds, os.path.join('Classifier', "balanced_dataset_door_not_door.pickle"))
-
-    print("This is the error rate if we always guess the majority: %.2f" % (
-        1 - max(
-            ds[ds["target"] == 'nobody'].index.size,
-            ds[ds["target"] == 'andrea'].index.size,
-            ds[ds["target"] == 'exit'].index.size,
-            ds[ds["target"] == 'debora'].index.size,
-            ds[ds["target"] == 'alessio'].index.size,
-            ds[ds["target"] == 'mamma'].index.size,
-            ds[ds["target"] == 'papa'].index.size,
-            ds[ds["target"] == 'bell'].index.size,
-        ) / (float)(ds.index.size)))
-
-    ####################################################################################
-    mapping = {
-        'nobody': 0,
-        'alessio': 1,
-        'andrea': 2,
-        'debora': 3,
-        'mamma': 4,
-        'papa': 5,
-        'exit': 6,
-        'bell': 7,
-    }
-
-    ####################################################################################
-    # Train
-    train(ds, 'test', mapping)
-
-
-if __name__ == "__main__":
-    tf.app.run()

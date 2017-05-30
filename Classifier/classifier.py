@@ -3,15 +3,16 @@ import pandas
 import librosa
 import numpy as np
 import os
+import logging
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
 
 def load_graph(frozen_graph_filename):
     """ Load graph/model to be used """
+    logging.info('Loading frozen model-graph: '+frozen_graph_filename)
     # We load the protobuf file from the disk and parse it to retrieve the
     # unserialized graph_def
-    print('> Loading graph...')
     with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
@@ -32,7 +33,7 @@ def load_graph(frozen_graph_filename):
 
 def load_audio(audio_path):
     """ Take the input audio file and assemble it to be handled by the CNN """
-    print('> loading audio file')
+    logging.info('Loading audio file: '+audio_path)
     dataset = pandas.DataFrame(columns=['data', 'mels', 'mfcc'])
 
     y, sr = librosa.core.load(audio_path, sr=48000, mono=True)
@@ -53,7 +54,7 @@ def predict(audio_path, frozen_model_path, mapping):
     :param audio_path: 
     :param frozen_model_path: 
     """
-    print('> predict')
+    logging.info('Prediction START')
     # Loading audio
     ds = load_audio(audio_path)
 
@@ -73,15 +74,16 @@ def predict(audio_path, frozen_model_path, mapping):
             x: [audio_feature]  # < 45
         })
 
-        print('predictions:' + str(y_out))
+        logging.info('predictions:' + str(y_out))
         return mapping[y_out[0].argmax()]
 
 
 def hierarchical_predict(audio_path):
     """ Predict the class of the given audio file according the whole hierarchical model """
-    model_door_not_door = os.path.join('Classifier', 'model', 'door_not_door', 'freezed', 'frozen_model.pb')
-    model_person_not_person = os.path.join('Classifier', 'model', 'person_not_person', 'freezed', 'frozen_model.pb')
-    model_only_people = os.path.join('Classifier', 'model', 'only_people', 'freezed', 'frozen_model.pb')
+    logging.info('Hierarchical prediction START')
+    model_door_not_door = os.path.join('Classifier', 'model', 'door_not_door', 'frozen', 'frozen_model.pb')
+    model_person_not_person = os.path.join('Classifier', 'model', 'person_not_person', 'frozen', 'frozen_model.pb')
+    model_only_people = os.path.join('Classifier', 'model', 'only_people', 'frozen', 'frozen_model.pb')
 
     mapping_door_not_door = {
         0: 'nobody',
