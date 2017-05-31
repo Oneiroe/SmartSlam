@@ -208,7 +208,7 @@ def model(features, labels, mode, params):
     # Convolutional Layer #1
     conv1 = tf.layers.conv2d(
         inputs=input_layer,
-        filters=32,
+        filters=16,  # 32
         kernel_size=[5, 5],
         padding="same",
         activation=tf.nn.relu,
@@ -228,7 +228,7 @@ def model(features, labels, mode, params):
     # Convolutional Layer #2
     conv2 = tf.layers.conv2d(
         inputs=pool1,
-        filters=64,
+        filters=32,  # 64
         kernel_size=[5, 5],
         padding="same",
         activation=tf.nn.relu,
@@ -254,7 +254,7 @@ def model(features, labels, mode, params):
     pool2_flat = tf.reshape(pool2, [-1, pool2_shape_flatten])
     dense = tf.layers.dense(
         inputs=pool2_flat,
-        units=128,  # 1024
+        units=64,  # 128 # 1024
         activation=tf.nn.relu,
         name='dense_layer'
     )
@@ -365,6 +365,8 @@ def train(ds, model_name, mapping):
     logging.info(eval_results)
 
     # Freeze model
+    if not os.path.exists(os.path.join('Classifier', 'model', model_name, 'frozen')):
+        os.mkdir(os.path.join('Classifier', 'model', model_name, 'frozen'))
     freeze_graph(
         os.path.join('Classifier', 'model', model_name, 'convnet_model'),
         os.path.join('Classifier', 'model', model_name, 'frozen', 'frozen_model.pb'),

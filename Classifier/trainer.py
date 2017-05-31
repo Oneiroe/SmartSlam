@@ -18,8 +18,9 @@ def main():
 
     ####################################################################################
     # 0 - all model
-    logging.info('1 - Door not door model')
-    mapping_all = {
+    name = 'all'
+    logging.info('0 - model: ' + name)
+    mapping = {
         'nobody': 0,
         'alessio': 1,
         'andrea': 2,
@@ -29,39 +30,39 @@ def main():
         'exit': 6,
         'bell': 7,
     }
-    name_all = 'all'
-    dataset_path_all = os.path.join('Classifier', 'balanced_dataset_all.pickle')
+    dataset_path = os.path.join('Classifier', 'balanced_dataset_' + name + '.pickle')
     # Create&save/load dataset
     logging.info('1 - DATASET')
-    if os.path.exists(dataset_path_all):
-        ds_all = pandas.read_pickle(dataset_path_all)
+    if os.path.exists(dataset_path):
+        ds = pandas.read_pickle(dataset_path)
     else:
-        ds_all = cnn_tensorflow.create_balanced_dataset(mapping_all, [1, 2, 3, 4, 5])
+        ds = cnn_tensorflow.create_balanced_dataset(mapping, [1, 2, 3, 4, 5])
         cnn_tensorflow.save_dataset(
-            ds_all,
-            dataset_path_all
+            ds,
+            dataset_path
         )
 
     logging.info("This is the error rate if we always guess the majority: %.2f" % (
         1 - max(
-            ds_all[ds_all["target"] == 'nobody'].index.size,
-            ds_all[ds_all["target"] == 'andrea'].index.size,
-            ds_all[ds_all["target"] == 'exit'].index.size,
-            ds_all[ds_all["target"] == 'debora'].index.size,
-            ds_all[ds_all["target"] == 'alessio'].index.size,
-            ds_all[ds_all["target"] == 'mamma'].index.size,
-            ds_all[ds_all["target"] == 'papa'].index.size,
-            ds_all[ds_all["target"] == 'bell'].index.size
-        ) / (float)(ds_all.index.size)))
+            ds[ds["target"] == 'nobody'].index.size,
+            ds[ds["target"] == 'andrea'].index.size,
+            ds[ds["target"] == 'exit'].index.size,
+            ds[ds["target"] == 'debora'].index.size,
+            ds[ds["target"] == 'alessio'].index.size,
+            ds[ds["target"] == 'mamma'].index.size,
+            ds[ds["target"] == 'papa'].index.size,
+            ds[ds["target"] == 'bell'].index.size
+        ) / (float)(ds.index.size)))
 
     # train/retrain model
     logging.info('1 - TRAINING')
-    cnn_tensorflow.train(ds_all, name_all, mapping_all)
+    cnn_tensorflow.train(ds, name, mapping)
 
     ####################################################################################
     # 1 - Door not door
-    logging.info('1 - Door not door model')
-    mapping_door_not_door = {
+    name = 'door_not_door'
+    logging.info('1 - model: ' + name)
+    mapping = {
         'nobody': 0,
         'alessio': 1,
         'andrea': 1,
@@ -71,40 +72,39 @@ def main():
         'exit': 1,
         'bell': 1,
     }
-    name_door_not_door = 'door_not_door'
-    dataset_path_door_not_door = os.path.join('Classifier', 'balanced_dataset_door_not_door.pickle')
+    dataset_path = os.path.join('Classifier', 'balanced_dataset_' + name + '.pickle')
     # Create&save/load dataset
     logging.info('1 - DATASET')
-    if os.path.exists(dataset_path_door_not_door):
-        ds_door_not_door = pandas.read_pickle(dataset_path_door_not_door)
+    if os.path.exists(dataset_path):
+        ds = pandas.read_pickle(dataset_path)
     else:
-        ds_door_not_door = cnn_tensorflow.create_balanced_dataset(mapping_door_not_door)
+        ds = cnn_tensorflow.create_balanced_dataset(mapping)
         cnn_tensorflow.save_dataset(
-            ds_door_not_door,
-            dataset_path_door_not_door
+            ds,
+            dataset_path
         )
 
     logging.info("This is the error rate if we always guess the majority: %.2f" % (
         1 - max(
-            ds_door_not_door[ds_door_not_door["target"] == 'nobody'].index.size,
-            ds_door_not_door[ds_door_not_door["target"] == 'andrea'].index.size +
-            ds_door_not_door[ds_door_not_door["target"] == 'exit'].index.size +
-            ds_door_not_door[ds_door_not_door["target"] == 'debora'].index.size +
-            ds_door_not_door[ds_door_not_door["target"] == 'alessio'].index.size +
-            ds_door_not_door[ds_door_not_door["target"] == 'mamma'].index.size +
-            ds_door_not_door[ds_door_not_door["target"] == 'papa'].index.size +
-            ds_door_not_door[ds_door_not_door["target"] == 'bell'].index.size
-        ) / (float)(ds_door_not_door.index.size)))
+            ds[ds["target"] == 'nobody'].index.size,
+            ds[ds["target"] == 'andrea'].index.size +
+            ds[ds["target"] == 'exit'].index.size +
+            ds[ds["target"] == 'debora'].index.size +
+            ds[ds["target"] == 'alessio'].index.size +
+            ds[ds["target"] == 'mamma'].index.size +
+            ds[ds["target"] == 'papa'].index.size +
+            ds[ds["target"] == 'bell'].index.size
+        ) / (float)(ds.index.size)))
 
     # train/retrain model
     logging.info('1 - TRAINING')
-    cnn_tensorflow.train(ds_door_not_door, name_door_not_door, mapping_door_not_door)
+    cnn_tensorflow.train(ds, name, mapping)
 
     ####################################################################################
     # 2 - exit, bell, person
-    logging.info('2 - Person not person Model')
-
-    mapping_person_not_person = {
+    name = 'person_not_person'
+    logging.info('2 - Model: ' + name)
+    mapping = {
         'alessio': 2,
         'andrea': 2,
         'debora': 2,
@@ -113,69 +113,68 @@ def main():
         'exit': 0,
         'bell': 1,
     }
-    name_person_not_person = 'person_not_person'
-    dataset_path_person_not_person = os.path.join('Classifier', 'balanced_dataset_person_not_person.pickle')
+    dataset_path = os.path.join('Classifier', 'balanced_dataset_' + name + '.pickle')
     # Create&save/load dataset
     logging.info('2 - DATASET')
-    if os.path.exists(dataset_path_person_not_person):
-        ds_person_not_person = pandas.read_pickle(dataset_path_person_not_person)
+    if os.path.exists(dataset_path):
+        ds = pandas.read_pickle(dataset_path)
     else:
-        ds_person_not_person = cnn_tensorflow.create_balanced_dataset(mapping_person_not_person, [2])
+        ds = cnn_tensorflow.create_balanced_dataset(mapping, [2])
         cnn_tensorflow.save_dataset(
-            ds_person_not_person,
-            dataset_path_person_not_person
+            ds,
+            dataset_path
         )
 
     logging.info("This is the error rate if we always guess the majority: %.2f" % (
         1 - max(
-            ds_person_not_person[ds_person_not_person["target"] == 'andrea'].index.size +
-            ds_person_not_person[ds_person_not_person["target"] == 'debora'].index.size +
-            ds_person_not_person[ds_person_not_person["target"] == 'alessio'].index.size +
-            ds_person_not_person[ds_person_not_person["target"] == 'mamma'].index.size +
-            ds_person_not_person[ds_person_not_person["target"] == 'papa'].index.size,
-            ds_person_not_person[ds_person_not_person["target"] == 'exit'].index.size,
-            ds_person_not_person[ds_person_not_person["target"] == 'bell'].index.size
-        ) / (float)(ds_person_not_person.index.size)))
+            ds[ds["target"] == 'andrea'].index.size +
+            ds[ds["target"] == 'debora'].index.size +
+            ds[ds["target"] == 'alessio'].index.size +
+            ds[ds["target"] == 'mamma'].index.size +
+            ds[ds["target"] == 'papa'].index.size,
+            ds[ds["target"] == 'exit'].index.size,
+            ds[ds["target"] == 'bell'].index.size
+        ) / (float)(ds.index.size)))
 
     # train/retrain model
     logging.info('2 - TRAINING')
-    cnn_tensorflow.train(ds_person_not_person, name_person_not_person, mapping_person_not_person)
+    cnn_tensorflow.train(ds, name, mapping)
+
     ####################################################################################
     # 3 - people
-    logging.info('3 - people model')
-
-    mapping_only_people = {
+    name = 'only_people'
+    logging.info('3 - model: ' + name)
+    mapping = {
         'alessio': 0,
         'andrea': 1,
         'debora': 2,
         'mamma': 3,
         'papa': 4,
     }
-    name_only_people = 'only_people'
-    dataset_path_only_people = os.path.join('Classifier', 'balanced_dataset_only_people.pickle')
+    dataset_path = os.path.join('Classifier', 'balanced_dataset_only_people.pickle')
     # Create&save/load dataset
     logging.info('3 - DATASET')
-    if os.path.exists(dataset_path_only_people):
-        ds_only_people = pandas.read_pickle(dataset_path_only_people)
+    if os.path.exists(dataset_path):
+        ds = pandas.read_pickle(dataset_path)
     else:
-        ds_only_people = cnn_tensorflow.create_balanced_dataset(mapping_only_people, [0, 1, 2, 3, 4])
+        ds = cnn_tensorflow.create_balanced_dataset(mapping, [0, 1, 2, 3, 4])
         cnn_tensorflow.save_dataset(
-            ds_only_people,
-            dataset_path_only_people
+            ds,
+            dataset_path
         )
 
     logging.info("This is the error rate if we always guess the majority: %.2f" % (
         1 - max(
-            ds_person_not_person[ds_person_not_person["target"] == 'andrea'].index.size,
-            ds_person_not_person[ds_person_not_person["target"] == 'debora'].index.size,
-            ds_person_not_person[ds_person_not_person["target"] == 'alessio'].index.size,
-            ds_person_not_person[ds_person_not_person["target"] == 'mamma'].index.size,
-            ds_person_not_person[ds_person_not_person["target"] == 'papa'].index.size,
-        ) / (float)(ds_person_not_person.index.size)))
+            ds[ds["target"] == 'andrea'].index.size,
+            ds[ds["target"] == 'debora'].index.size,
+            ds[ds["target"] == 'alessio'].index.size,
+            ds[ds["target"] == 'mamma'].index.size,
+            ds[ds["target"] == 'papa'].index.size,
+        ) / (float)(ds.index.size)))
 
     # train/retrain model
     logging.info('3 - TRAINING')
-    cnn_tensorflow.train(ds_only_people, name_only_people, mapping_only_people)
+    cnn_tensorflow.train(ds, name, mapping)
 
 
 if __name__ == "__main__":
