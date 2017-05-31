@@ -1,15 +1,30 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from  flask import *
 import sqlite3
 from functools import wraps
 import hashlib
+import logging
+import os
+import subprocess
 
-DATABASE= '/home/robotto/SmartSlam/DB/smartSlamDB.sqlite'
-DATABASEUSERS='/home/vanessa/SmartSlam/users.db'
+OS_USER= subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+DATABASE= '/home/'+OS_USER+'/SmartSlam/DB/smartSlamDB.sqlite'
+DATABASEUSERS='/home/'+OS_USER+'/SmartSlam/users.db'
 app=Flask(__name__)
 app.config.from_object(__name__)
 
 app.secret_key='my_precious'
+
+
+log_dir = '/home/'+OS_USER+'/SmartSlam/WebUI/LOG/'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+logging.basicConfig(filename='/home/'+OS_USER+'/SmartSlam/WebUI/LOG/INFO.log',
+                    level=logging.INFO,
+                    format='%(asctime)-15s '
+                           '%(levelname)s '
+                           '--%(filename)s-- '
+                           '%(message)s')
 
 def connect_db():
     return sqlite3.connect(app.config['DATABASE'])
@@ -117,14 +132,14 @@ def labels():
 def update(name):
     lab = request.form['priority']
     if not lab:
-        
+
         return redirect(url_for('accesses'))
     else:
         g.db = connect_db()
         cur = g.db.execute("UPDATE accesses SET label = (?) WHERE name = (?);", [lab, name])
         g.db.commit()
         g.db.close()
-        
+
         return redirect(url_for('accesses'))
 
 
@@ -134,14 +149,14 @@ def update(name):
 def new_task():
     lab=request.form['name']
     if not lab :
-       
+
         return redirect(url_for('labels'))
     else:
         g.db = connect_db()
         cur=g.db.execute("INSERT INTO labels (label) VALUES (?)", [lab] )
         g.db.commit()
         g.db.close()
-        
+
         return redirect(url_for('labels'))
 
 @app.route('/delete/<string:label>',)
@@ -183,4 +198,4 @@ def check_password(hashed_password, user_password):
     return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
 
 if __name__=="__main__":
-    app.run(host='0.0.0.0',port=80, debug=True)
+    app.run(host='0.0.0.0',port=8080, debug=True)
