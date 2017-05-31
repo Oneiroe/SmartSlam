@@ -11,6 +11,10 @@ import os
 import subprocess
 import threading
 
+USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+sys.path.insert(0, os.path.join(os.path.abspath(os.sep), 'home', USER, 'SmartSlam'))
+from Classifier import classifier
+
 
 #########################
 # SYSTEM SIGNALS HANDLING
@@ -47,17 +51,28 @@ def notify_audio_sample(sample_name, sample_path, duration):
 
     msg = 'New audio sample: ' + sample_name
     send_file = False
+    send_class = True
 
-    file = open(sample_path, 'rb')
     for user in data['users']:
         logging.info('Sending message notification')
         bot.sendMessage(user, msg)
 
         if send_file:
-            logging.info('Sending audio file in another thread')
-            threading.Thread(target=bot.sendVoice, args=(user, file, sample_name, duration)).start()
+            with open(sample_path, 'rb') as file:
+                logging.info('Sending audio file in another thread')
+                threading.Thread(target=bot.sendVoice, args=(user, file, sample_name, duration)).start()
 
-    # TODO select label to apply
+        if send_class:
+            logging.info('Sending audio classification in another thread')
+            # TODO make prediction work in other thread
+            # threading.Thread(target=bot.sendMessage, args=(user, get_audio_class(sample_path))).start()
+            bot.sendMessage(user, get_audio_class(sample_path))
+            # TODO buttons to refine classification
+
+
+def get_audio_class(audio_path):
+    """ Retrieve the prediction for the recorded audio """
+    return classifier.default_predict(audio_path)
 
 
 #########################

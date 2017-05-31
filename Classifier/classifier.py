@@ -4,21 +4,24 @@ import librosa
 import numpy as np
 import os
 import logging
+import subprocess
 
-tf.logging.set_verbosity(tf.logging.INFO)
+# tf.logging.set_verbosity(tf.logging.INFO)
 
 
 def load_graph(frozen_graph_filename):
     """ Load graph/model to be used """
-    logging.info('Loading frozen model-graph: '+frozen_graph_filename)
+    logging.info('Loading frozen model-graph: ' + frozen_graph_filename)
     # We load the protobuf file from the disk and parse it to retrieve the
     # unserialized graph_def
+    logging.debug('Reading model file')
     with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
 
     # Then, we can use again a convenient built-in function to import a graph_def into the
     # current default Graph
+    logging.debug('Importing graph')
     with tf.Graph().as_default() as graph:
         tf.import_graph_def(
             graph_def,
@@ -33,7 +36,7 @@ def load_graph(frozen_graph_filename):
 
 def load_audio(audio_path):
     """ Take the input audio file and assemble it to be handled by the CNN """
-    logging.info('Loading audio file: '+audio_path)
+    logging.info('Loading audio file: ' + audio_path)
     dataset = pandas.DataFrame(columns=['data', 'mels', 'mfcc'])
 
     y, sr = librosa.core.load(audio_path, sr=48000, mono=True)
@@ -61,6 +64,7 @@ def predict(audio_path, frozen_model_path, mapping):
     # Load Graph
     graph = load_graph(frozen_model_path)
 
+    logging.info('Audio and model loading DONE')
     ### Tensorflow
     # Prepare CNN input
     audio_feature = np.asanyarray(list(ds.mels[0].flatten()), dtype=np.float32)
@@ -110,3 +114,25 @@ def hierarchical_predict(audio_path):
             return intermediate_prediction
         else:
             return predict(audio_path, model_only_people, mapping_only_people)
+
+
+def default_predict(audio_path):
+    """ Predict the class of the given audio file according the best model trained"""
+    # TODO read chosen model from a config file
+    # TODO when training save also accuracy score and let this function choose the best model programmatically
+    # TODO save mapping somewhere inside/along the frozen model
+    logging.info('Default prediction START')
+    chosen = 'all'
+    model = os.path.join('/', 'home', subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0],
+                         'SmartSlam', 'Classifier', 'model', chosen, 'frozen', 'frozen_model.pb')
+    mapping = {
+        0: 'nobody',
+        1: 'alessio',
+        2: 'andrea',
+        3: 'debora',
+        4: 'mamma',
+        5: 'papa',
+        6: 'exit',
+        7: 'bell',
+    }
+    return predict(audio_path, model, mapping)
