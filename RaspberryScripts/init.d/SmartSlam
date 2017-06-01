@@ -31,7 +31,7 @@ LOGDIR=/var/log/
 
 do_start () {
     log_daemon_msg "Starting system $DAEMON_NAME daemon"
-    start-stop-daemon --start --background --pidfile $PIDFILE --make-pidfile --user $DAEMON_USER --chuid $DAEMON_USER --startas $DAEMON -- $DAEMON_OPTS > ${LOGDIR}${DAEMON_NAME}.log 2>&1
+    start-stop-daemon --start --background -C --pidfile $PIDFILE --make-pidfile --user $DAEMON_USER --chuid $DAEMON_USER --startas $DAEMON -- $DAEMON_OPTS > ${LOGDIR}${DAEMON_NAME}.log 2>&1
     log_end_msg $?
 }
 do_stop () {
