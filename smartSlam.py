@@ -38,6 +38,7 @@ def csv_save_access(csv_path, audio_path, label='default'):
 
 def main():
     # TODO in logging put also subjects, not only actions
+    os.chdir(os.path.join(os.path.abspath(os.sep), 'home', OS_USER, 'SmartSlam'))
     log_dir = os.path.join(os.getcwd(), 'LOG')
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)

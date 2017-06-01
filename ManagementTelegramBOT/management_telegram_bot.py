@@ -133,6 +133,7 @@ def handle(msg):
 
 def main():
     # LOG setup
+    os.chdir(os.path.join(os.path.abspath(os.sep), 'home', OS_USER, 'SmartSlam', 'ManagementTelegramBOT'))
     log_dir = os.path.join(os.getcwd(), 'LOG')
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
