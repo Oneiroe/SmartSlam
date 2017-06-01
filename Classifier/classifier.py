@@ -6,7 +6,7 @@ import os
 import logging
 import subprocess
 
-# tf.logging.set_verbosity(tf.logging.INFO)
+OS_USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
 
 
 def load_graph(frozen_graph_filename):
@@ -51,18 +51,15 @@ def load_audio(audio_path):
     return dataset.append(pandas.DataFrame(mapping), ignore_index=True)
 
 
-def predict(audio_path, frozen_model_path, mapping):
+def predict(audio_path, graph, mapping):
     """ Predict the class of the given audio file according the provided model
     :param mapping: dictionary mapping the numeric output of the network to a label
-    :param audio_path: 
-    :param frozen_model_path: 
+    :param audio_path: path to audio file
+    :param graph: already loaded tensor graph
     """
     logging.info('Prediction START')
     # Loading audio
     ds = load_audio(audio_path)
-
-    # Load Graph
-    graph = load_graph(frozen_model_path)
 
     logging.info('Audio and model loading DONE')
     ### Tensorflow
@@ -82,12 +79,14 @@ def predict(audio_path, frozen_model_path, mapping):
         return mapping[y_out[0].argmax()]
 
 
+@DeprecationWarning
 def hierarchical_predict(audio_path):
     """ Predict the class of the given audio file according the whole hierarchical model """
     logging.info('Hierarchical prediction START')
-    model_door_not_door = os.path.join('Classifier', 'model', 'door_not_door', 'frozen', 'frozen_model.pb')
-    model_person_not_person = os.path.join('Classifier', 'model', 'person_not_person', 'frozen', 'frozen_model.pb')
-    model_only_people = os.path.join('Classifier', 'model', 'only_people', 'frozen', 'frozen_model.pb')
+    model_door_not_door = load_graph(os.path.join('Classifier', 'model', 'door_not_door', 'frozen', 'frozen_model.pb'))
+    model_person_not_person = load_graph(
+        os.path.join('Classifier', 'model', 'person_not_person', 'frozen', 'frozen_model.pb'))
+    model_only_people = load_graph(os.path.join('Classifier', 'model', 'only_people', 'frozen', 'frozen_model.pb'))
 
     mapping_door_not_door = {
         0: 'nobody',
@@ -114,25 +113,3 @@ def hierarchical_predict(audio_path):
             return intermediate_prediction
         else:
             return predict(audio_path, model_only_people, mapping_only_people)
-
-
-def default_predict(audio_path):
-    """ Predict the class of the given audio file according the best model trained"""
-    # TODO read chosen model from a config file
-    # TODO when training save also accuracy score and let this function choose the best model programmatically
-    # TODO save mapping somewhere inside/along the frozen model
-    logging.info('Default prediction START')
-    chosen = 'all'
-    model = os.path.join('/', 'home', subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0],
-                         'SmartSlam', 'Classifier', 'model', chosen, 'frozen', 'frozen_model.pb')
-    mapping = {
-        0: 'nobody',
-        1: 'alessio',
-        2: 'andrea',
-        3: 'debora',
-        4: 'mamma',
-        5: 'papa',
-        6: 'exit',
-        7: 'bell',
-    }
-    return predict(audio_path, model, mapping)

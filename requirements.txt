@@ -1,0 +1,7 @@
+telepot
+requests
+pandas
+librosa
+numpy
+flask
+tensorflow

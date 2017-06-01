@@ -11,9 +11,16 @@ import os
 import subprocess
 import threading
 
-USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
-sys.path.insert(0, os.path.join(os.path.abspath(os.sep), 'home', USER, 'SmartSlam'))
-from Classifier import classifier
+#####################
+# SETUP
+
+OS_USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+DATA = os.path.join(os.path.abspath(os.sep), 'home', OS_USER, 'SmartSlam', 'ManagementTelegramBOT', 'credentials.json')
+
+with open(DATA) as file:
+    data = json.load(file)
+    data['known_clients'] = set(data['known_clients'])
+    bot = telepot.Bot(data['telegram_bot'])
 
 
 #########################
@@ -39,48 +46,29 @@ def wake_up():
     return msg
 
 
-def get_user():
-    """ Get the user who is running the script """
-    # logging.info('Getting user...') #  Not possible because the command is run before log configuration
-    return subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
-
-
-def notify_audio_sample(sample_name, sample_path, duration):
-    """ Notify the users of a new audio record """
+def notify_sample_audio(sample_path, prediction='', duration=0):
+    """ Notify the users of a new audio record, optionally send also class prediction and the audio file """
     logging.info('New audio sample')
+    sample_name = os.path.basename(sample_path)[:-4]
 
-    msg = 'New audio sample: ' + sample_name
-    send_file = False
-    send_class = True
+    msg = 'New audio record!\nNAME: ' + sample_name
+    if prediction:
+        msg += '\nCLASS: ' + prediction
 
     for user in data['users']:
         logging.info('Sending message notification')
-        bot.sendMessage(user, msg)
-
-        if send_file:
-            with open(sample_path, 'rb') as file:
+        if duration:
+            with open(sample_path, 'rb') as bit_file:
                 logging.info('Sending audio file in another thread')
-                threading.Thread(target=bot.sendVoice, args=(user, file, sample_name, duration)).start()
-
-        if send_class:
-            logging.info('Sending audio classification in another thread')
-            # TODO make prediction work in other thread
-            # threading.Thread(target=bot.sendMessage, args=(user, get_audio_class(sample_path))).start()
-            bot.sendMessage(user, get_audio_class(sample_path))
-            # TODO buttons to refine classification
-
-
-def get_audio_class(audio_path):
-    """ Retrieve the prediction for the recorded audio """
-    return classifier.default_predict(audio_path)
+                threading.Thread(target=bot.sendVoice, args=(user, bit_file, msg, duration)).start()
+        else:
+            bot.sendMessage(user, msg)
 
 
 #########################
 # BOT COMMANDS
 def get_ip():
-    """ Returns the global IP of the network the raspberry is connected to
-    :return: global IP
-    """
+    """ Returns the global IP of the network the raspberry is connected to """
     link = 'http://showip.net'
     max_attempts = 10  # Maximal number of attempts for an API call before giving up
     connection_timeout = 3  # Timeout before raise a timeout exception
@@ -141,16 +129,6 @@ def handle(msg):
         bot.sendMessage(chat_id, get_ip())
     else:
         bot.sendMessage(chat_id, 'Comando non riconoscuto')
-
-
-#####################
-# SETUP
-
-os.chdir(os.path.join(os.path.abspath(os.sep), 'home', get_user(), 'SmartSlam', 'ManagementTelegramBOT'))
-
-data = json.load(open('credentials.json'))
-data['known_clients'] = set(data['known_clients'])
-bot = telepot.Bot(data['telegram_bot'])
 
 
 def main():

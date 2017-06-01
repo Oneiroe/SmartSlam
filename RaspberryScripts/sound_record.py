@@ -6,13 +6,10 @@ import json
 import logging
 import os
 import subprocess
-import csv
-import sys
 
 # USER who is running the script
-USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
-sys.path.insert(0, os.path.join(os.path.abspath(os.sep), 'home', USER, 'SmartSlam'))
-import ManagementTelegramBOT.management_telegram_bot as telegram_bot
+OS_USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+SETTINGS = os.path.join(os.path.abspath(os.sep), 'home', OS_USER, 'SmartSlam', 'RaspberryScripts', 'settings.json')
 
 
 #####################
@@ -20,42 +17,56 @@ import ManagementTelegramBOT.management_telegram_bot as telegram_bot
 def led_on():
     """ Turns on LED """
     logging.info('Turning LED ON...')
-    GPIO.output(pin_led, GPIO.HIGH)
+    with open(SETTINGS) as file:
+        settings = json.load(file)
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(settings['led_pin_board'], GPIO.OUT)
+
+        GPIO.output(settings['led_pin_board'], GPIO.HIGH)
 
 
 def led_off():
     """ Turns off LED """
     logging.info('Turning LED OFF...')
-    GPIO.output(pin_led, GPIO.LOW)
+    with open(SETTINGS) as file:
+        settings = json.load(file)
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(settings['led_pin_board'], GPIO.OUT)
+
+        GPIO.output(settings['led_pin_board'], GPIO.LOW)
 
 
 def led_switch():
     """ Switch LED status """
-    if GPIO.input(pin_led) == 0:
-        GPIO.output(pin_led, GPIO.HIGH)
-    else:
-        GPIO.output(pin_led, GPIO.LOW)
+    logging.info('Switching LED status...')
+    with open(SETTINGS) as file:
+        settings = json.load(file)
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(settings['led_pin_board'], GPIO.OUT)
 
-
-def label(sample_name, labels_file, samples_dir, label):
-    """ Adds label to a recorded file"""
-    logging.info('LABELLING record')
-
-    labels_full_path = os.path.join(samples_dir, labels_file)
-    with open(labels_full_path, 'a', newline='') as csvfile:
-        csv.writer(csvfile).writerow([sample_name, label])
+        if GPIO.input(settings['led_pin_board']) == 0:
+            GPIO.output(settings['led_pin_board'], GPIO.HIGH)
+        else:
+            GPIO.output(settings['led_pin_board'], GPIO.LOW)
 
 
 def record():
-    """ Records sound """
-    logging.info('Start RECORDING')
+    """ Records sound, return absolute path to recorded file """
+    logging.info('Setting up...')
+    with open(SETTINGS) as file:
+        settings = json.load(file)
+        # Loading algorithm settings
+        hw = str(settings['audio_device_hw_number'])
+        duration = str(settings['sample_duration'])
+        samples_dir = settings['samples_dir']
 
+    #####################
+    # Recording
+    logging.info('Start RECORDING')
     base_name = 'sample'
     timestamp = time.strftime('%Y-%m-%d-%H%M%S')
     name = base_name + '-' + timestamp
-    hw = str(settings['audio_device_hw_number'])
-    duration = str(settings['sample_duration'])
-    samples_dir = settings['samples_dir']
+
     full_output_path = os.path.join(samples_dir, name + '.wav')
 
     subprocess.call([
@@ -73,57 +84,34 @@ def record():
 
     # TODO logging recording response in case of error
     # TODO timeout in case of error
+    logging.info('File: ' + full_output_path)
     logging.info('End RECORDING')
 
-    label(name, 'labels.csv', samples_dir, 'default')
-
-    logging.info('Notifying users of new access')
-    telegram_bot.notify_audio_sample(name, full_output_path, duration)
+    return full_output_path
 
 
-#####################
-# SETUP
+def wait_pir(DEBUG=False):
+    """ Loops till PIR doesn't detect something"""
+    # setting GPIO PINs
+    with open(SETTINGS) as file:
+        settings = json.load(file)
 
+        logging.info('Setting GPIO PINS')
+        GPIO.setmode(GPIO.BOARD)
 
-os.chdir(os.path.join(os.path.abspath(os.sep), 'home', USER, 'SmartSlam', 'RaspberryScripts'))
-# LOG setup
-log_dir = os.path.join(os.getcwd(), 'LOG')
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-logging.basicConfig(filename=os.path.join(log_dir, 'INFO.log'),
-                    level=logging.INFO,
-                    format='%(asctime)-15s '
-                           '%(levelname)s '
-                           '--%(filename)s-- '
-                           '%(message)s')
+        GPIO.setup(settings['pir_pin_board'], GPIO.IN)
 
-logging.info('START #############################################################')
-logging.info('Setting Up...')
+    #####################
+    # PIR cycle
 
-settings = json.load(open('settings.json'))
+    logging.info('Starting PIR waiting cycle...')
 
-# Raspberry
-GPIO.setmode(GPIO.BOARD)
+    if DEBUG:
+        while input('insert 1 to start...') != '1':
+            time.sleep(0.1)
+    else:
+        while GPIO.input(settings['pir_pin_board']) is not 1:
+            time.sleep(0.1)
 
-pin_pir_input = settings['pir_pin_board']
-GPIO.setup(pin_pir_input, GPIO.IN)
-
-pin_led = settings['led_pin_board']
-GPIO.setup(pin_led, GPIO.OUT)
-
-pir_time_interval = settings['pir_time_interval']
-
-#####################
-# PIR cycle
-
-logging.info('Starting PIR waiting cycle...')
-
-while True:
-    i = GPIO.input(pin_pir_input)
-    if i == 1:  # detection
-        logging.info('PIR detection')
-        led_on()
-        record()
-        led_off()
-
-    time.sleep(0.1)
+    logging.info('PIR detection')
+    return
