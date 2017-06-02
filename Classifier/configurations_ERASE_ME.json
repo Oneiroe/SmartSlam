@@ -1,0 +1,5 @@
+{
+  "db_sqlite_path": "PATH TO sqlite DB",
+  "csv_path": "PATH TO csv LABEL FILE",
+  "samples_dir_path": "PATH WHERE SAMPLES ARE STORED"
+}

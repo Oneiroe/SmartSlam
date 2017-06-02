@@ -16,7 +16,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 def load_labels_from_csv(csv_path, targets_mapping):
     """ Loads the dataset files with relative labels from the given CSV file """
-    logging.info('Loading samples and Labels from CSV (', csv_path, ')...')
+    logging.info('Loading samples and Labels from CSV (' + csv_path + ')...')
     labels = dict()  # key: label, value: set of mapped samples
     samples = dict()  # key: sample, value: label
     with open(csv_path, 'r', newline='') as csvfile:
@@ -30,7 +30,7 @@ def load_labels_from_csv(csv_path, targets_mapping):
 
 def load_labels_from_db(db_path, targets_mapping):
     """ Loads the dataset files with relative labels from the given SQLite DB """
-    logging.info('Loading samples and Labels from DB (', db_path, ')...')
+    logging.info('Loading samples and Labels from DB (' + db_path + ')...')
     labels = dict()  # key: label, value: set of mapped samples
     samples = dict()  # key: sample, value: label
     with sqlite3.connect(db_path) as conn:
@@ -43,24 +43,23 @@ def load_labels_from_db(db_path, targets_mapping):
     return labels, samples
 
 
-def create_balanced_dataset(targets_mapping, data_source_path, discriminant_targets=[]):
+def create_balanced_dataset(targets_mapping, label_source_path, samples_dir_path, discriminant_targets=[]):
     """ Load samples and relative label randomly, such to have a balanced number of entity for each label
 
-    :param targets_mapping:
-    :param discriminant_targets: is not -1, ds will have at least all the elements mapped to this target
+    :param samples_dir_path: path where samples are stored
+    :param label_source_path: path to the CSV or SQLite file containing the accesses log with the relative labels
+    :param targets_mapping: dict mapping labels to their numeric representation
+    :param discriminant_targets: is not empty, ds will have at least all the elements mapped to this target
     :return: pandas DataFrame
     """
     logging.info('Creating balanced dataset')
     dataset = pandas.DataFrame(columns=['data', 'target', 'mels', 'mfcc'])
     dataset.target = dataset.target.astype(str)
 
-    directory = os.path.join('DB', 'Samples')
-    labels_path = os.path.join('DB', 'Samples', 'labels.csv')
-
-    if os.path.basename(data_source_path).split('.')[-1] == 'sqlite':
-        labels, samples = load_labels_from_db(os.path.join('DB', 'smartSlamDB.sqlite'), targets_mapping)
-    elif os.path.basename(data_source_path).split('.')[-1] == 'csv':
-        labels, samples = load_labels_from_csv(labels_path, targets_mapping)
+    if os.path.basename(label_source_path).split('.')[-1] == 'sqlite':
+        labels, samples = load_labels_from_db(label_source_path, targets_mapping)
+    elif os.path.basename(label_source_path).split('.')[-1] == 'csv':
+        labels, samples = load_labels_from_csv(label_source_path, targets_mapping)
     else:
         raise Exception('Label file not recognized')
 
@@ -82,10 +81,10 @@ def create_balanced_dataset(targets_mapping, data_source_path, discriminant_targ
 
     for filename in chosen:
         filename += '.wav'
-        if os.path.exists(os.path.join(directory, filename)):
+        if os.path.exists(os.path.join(samples_dir_path, filename)):
             if samples[filename[:-4]] == 'default':
                 continue
-            y, sr = librosa.core.load(os.path.join(directory, filename), sr=48000, mono=True)
+            y, sr = librosa.core.load(os.path.join(samples_dir_path, filename), sr=48000, mono=True)
             mel = librosa.feature.melspectrogram(y=y, sr=sr)
             mfcc = librosa.feature.mfcc(y=y, sr=sr)
             target = samples[filename[:-4]]
