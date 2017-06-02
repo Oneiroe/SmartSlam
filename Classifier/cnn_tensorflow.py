@@ -14,32 +14,36 @@ from tensorflow.contrib.learn.python.learn.estimators import model_fn as model_f
 tf.logging.set_verbosity(tf.logging.INFO)
 
 
-def load_labels_from_csv(csv_path, targets_mapping):
+def load_labels_from_csv(csv_path, targets_mapping=False):
     """ Loads the dataset files with relative labels from the given CSV file """
     logging.info('Loading samples and Labels from CSV (' + csv_path + ')...')
     labels = dict()  # key: label, value: set of mapped samples
     samples = dict()  # key: sample, value: label
     with open(csv_path, 'r', newline='') as csvfile:
         for record in csv.reader(csvfile):
-            if record[1] not in targets_mapping.keys():
+            if targets_mapping and record[1] not in targets_mapping.keys():
                 continue
             labels.setdefault(record[1], set()).add(record[0])
             samples[record[0]] = record[1]
     return labels, samples
 
 
-def load_labels_from_db(db_path, targets_mapping):
+def load_labels_from_db(db_path, targets_mapping=False):
     """ Loads the dataset files with relative labels from the given SQLite DB """
     logging.info('Loading samples and Labels from DB (' + db_path + ')...')
     labels = dict()  # key: label, value: set of mapped samples
     samples = dict()  # key: sample, value: label
     with sqlite3.connect(db_path) as conn:
         c = conn.cursor()
-        for record in c.execute("SELECT name,label FROM accesses WHERE label IN ({seq})".format(
-                seq=','.join(['?'] * len(targets_mapping))), list(targets_mapping.keys())).fetchall():
-            labels.setdefault(record[1], set()).add(record[0])
-            samples[record[0]] = record[1]
-
+        if targets_mapping:
+            for record in c.execute("SELECT name,label FROM accesses WHERE label IN ({seq})".format(
+                    seq=','.join(['?'] * len(targets_mapping))), list(targets_mapping.keys())).fetchall():
+                labels.setdefault(record[1], set()).add(record[0])
+                samples[record[0]] = record[1]
+        else:
+            for record in c.execute("SELECT name,label FROM accesses").fetchall():
+                labels.setdefault(record[1], set()).add(record[0])
+                samples[record[0]] = record[1]
     return labels, samples
 
 
@@ -99,30 +103,25 @@ def create_balanced_dataset(targets_mapping, label_source_path, samples_dir_path
     return dataset
 
 
-def create_random_sample(num):
+def create_random_sample(num, label_source_path, samples_dir_path):
     """ Loads a random sample of num elements """
     logging.info('Creating random dataset of %i element' % num)
     dataset = pandas.DataFrame(columns=['data', 'target', 'mels', 'mfcc'])
     dataset.target = dataset.target.astype(str)
 
-    directory = os.path.join('DB', 'Samples')
-    labels_path = os.path.join('DB', 'Samples', 'labels.csv')
-
-    labels = dict()  # key: label, value: set of mapped samples
-    samples = dict()  # key: sample, value: label
-    with open(labels_path, 'r', newline='') as csvfile:
-        for record in csv.reader(csvfile):
-            if record[1] == 'default':
-                continue
-            labels.setdefault(record[1], set()).add(record[0])
-            samples[record[0]] = record[1]
+    if os.path.basename(label_source_path).split('.')[-1] == 'sqlite':
+        labels, samples = load_labels_from_db(label_source_path)
+    elif os.path.basename(label_source_path).split('.')[-1] == 'csv':
+        labels, samples = load_labels_from_csv(label_source_path)
+    else:
+        raise Exception('Label file not recognized')
 
     while num:
         filename = random.sample(list(samples), 1)[0]
         if samples[filename] == 'default':
             continue
         num -= 1
-        y, sr = librosa.core.load(os.path.join(directory, filename + '.wav'), sr=48000, mono=True)
+        y, sr = librosa.core.load(os.path.join(samples_dir_path, filename + '.wav'), sr=48000, mono=True)
         mel = librosa.feature.melspectrogram(y=y, sr=sr)
         mfcc = librosa.feature.mfcc(y=y, sr=sr)
         target = samples[filename]
@@ -143,6 +142,8 @@ def save_dataset(dataset, output_path):
     :param output_path: path adn file name of output
     """
     logging.info('Saving dataset to pickle file :' + output_path)
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     pandas.to_pickle(dataset, output_path)
 
 
@@ -364,7 +365,7 @@ def train(ds, model_name, mapping):
     door_classifier = learn.Estimator(
         model_fn=model,
         params={'labels_num': labels_num},
-        model_dir=os.path.join('Classifier', 'model', model_name, 'convnet_model')
+        model_dir=os.path.join('model', model_name, 'convnet_model')
     )
 
     # Set up logging for predictions
@@ -395,9 +396,9 @@ def train(ds, model_name, mapping):
     logging.info(eval_results)
 
     # Freeze model
-    if not os.path.exists(os.path.join('Classifier', 'model', model_name, 'frozen')):
-        os.mkdir(os.path.join('Classifier', 'model', model_name, 'frozen'))
+    if not os.path.exists(os.path.join('model', model_name, 'frozen')):
+        os.mkdir(os.path.join('model', model_name, 'frozen'))
     freeze_graph(
-        os.path.join('Classifier', 'model', model_name, 'convnet_model'),
-        os.path.join('Classifier', 'model', model_name, 'frozen', 'frozen_model.pb'),
+        os.path.join('model', model_name, 'convnet_model'),
+        os.path.join('model', model_name, 'frozen', 'frozen_model.pb'),
     )
