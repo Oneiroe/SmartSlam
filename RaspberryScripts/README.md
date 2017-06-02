@@ -1,3 +1,9 @@
-Here goes the **scripts** for **raspberry**.
+Here are the **scripts** for **raspberry**.
 
-These includes PIR sensors event capture, microphone recording, LED blinking and any other necessary action involving the base OS.
+These includes PIR sensor event capture, microphone recording and LED switching.
+
+In "init.d" folder are contained the scripts (to be copied into system folder "/etc/init.d/") 
+that "daemonize" the project components, making them 
+working on background, 
+launching at boot and 
+capturing the system closing events.

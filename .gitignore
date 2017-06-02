@@ -7,14 +7,18 @@
 # Logs
 **/LOG/*
 
+# Audio FIles
+*.wav
+
 # DB
-/DB/Samples/
 /DB/smartSlamDB.sqlite
+/DB/Samples/labels.csv
 
-# Credentials
+# Credentials and setting files
+# For each of them a STUB file is provided as name_ERASE_ME.json
+# Rename them removing the capitalized part and fill with the correct information
+/config.json
 /ManagementTelegramBOT/credentials.json
-
-# Settings
 /RaspberryScripts/settings.json
-
-
+/Classifier/configurations.json
+/WebUI/users.db

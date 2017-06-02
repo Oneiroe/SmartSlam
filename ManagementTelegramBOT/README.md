@@ -1,4 +1,2 @@
 # ManagementTelegramBot
-Raspberry-pi based TelegramBot
-
-This BOT is for administration only, it's not meant for users.
+Through this BOT users are notified of new accesses and their predicted classification. It also returns the address where to find the WebUI.

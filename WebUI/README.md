@@ -1,3 +1,3 @@
-Here goes the modules for **User Interface**, in our case a Telegram Bot and/or a Web page.
+Here are the modules for **Web User Interface**.
 
-Through that user can monitor the system status, being notified of new accesses, watch accesses LOG, insert/correct accesses classification.
+Through that user can analyze accesses LOG, insert/correct accesses classification, play/download audio records.
