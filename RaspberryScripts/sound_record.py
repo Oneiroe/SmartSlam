@@ -82,8 +82,6 @@ def record():
         full_output_path  # Output file
     ])
 
-    # TODO logging recording response in case of error
-    # TODO timeout in case of error
     logging.info('File: ' + full_output_path)
     logging.info('End RECORDING')
 

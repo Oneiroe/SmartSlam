@@ -51,11 +51,12 @@ def notify_sample_audio(sample_path, prediction='', duration=0):
     """ Notify the users of a new audio record, optionally send also class prediction and the audio file
     :type prediction: tuple (prediction, probabilities) where the first is a string and the second a Counter dictionary
     """
-    logging.info('New audio sample')
+    logging.info('Notifying user of new audio sample (', sample_path, ')...')
     sample_name = os.path.basename(sample_path)[:-4]
 
     msg = 'New audio record!\nNAME: ' + sample_name
     if prediction:
+        logging.info('Writing predictions into message...')
         msg += '\nCLASS: ' + prediction[0]
         msg += '\n------------------------------'
         msg += '\nDETAILS: '

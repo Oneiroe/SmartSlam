@@ -6,6 +6,7 @@ import os
 import sqlite3
 import csv
 import subprocess
+import json
 from collections import Counter
 
 from RaspberryScripts import sound_record
@@ -13,6 +14,7 @@ from ManagementTelegramBOT import management_telegram_bot as telegram_bot
 from Classifier import classifier
 
 OS_USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+CONFIG = os.path.join(os.path.abspath(os.sep), 'home', OS_USER, 'SmartSlam', 'config.json')
 
 
 def db_save_access(db_path, audio_path, label='default'):
@@ -36,7 +38,6 @@ def csv_save_access(csv_path, audio_path, label='default'):
 
 
 def main():
-    # TODO in logging put also subjects, not only actions
     os.chdir(os.path.join(os.path.abspath(os.sep), 'home', OS_USER, 'SmartSlam'))
     log_dir = os.path.join(os.getcwd(), 'LOG')
     if not os.path.exists(log_dir):
@@ -52,21 +53,15 @@ def main():
 
     ### LOAD SETTINGS
     logging.info('Setting Up...')
+    with open(CONFIG) as file:
+        config = json.load(file)
     # DB
+    db_sqlite_path = config['db_sqlite_path']
+    csv_path = config['csv_path']
 
     # CNN
-    nn_model_path = os.path.join('/', 'home', OS_USER, 'SmartSlam', 'Classifier', 'model', 'all', 'frozen',
-                                 'frozen_model.pb')
-    nn_model_mapping = {
-        0: 'nobody',
-        1: 'alessio',
-        2: 'andrea',
-        3: 'debora',
-        4: 'mamma',
-        5: 'papa',
-        6: 'exit',
-        7: 'bell',
-    }
+    nn_model_path = config['nn_model_path']
+    nn_model_mapping = {int(key): config['nn_model_mapping'][key] for key in config['nn_model_mapping']}
     nn_model_graph = classifier.load_graph(nn_model_path)
 
     logging.info('Setting Up...COMPLETE')
@@ -83,11 +78,9 @@ def main():
         # Sound Record
         audio_path = sound_record.record()
         # save DB
-        # TODO take DB path from a setting file
-        db_save_access(os.path.join('DB', 'smartSlamDB.sqlite'), audio_path)
+        db_save_access(db_sqlite_path, audio_path)
         # save CSV
-        # TODO take CSV path from a setting file
-        csv_save_access(os.path.join('DB', 'Samples', 'labels.csv'), audio_path)
+        csv_save_access(csv_path, audio_path)
 
         ### CHECKPOINT 1
         # bot notification: only name
@@ -97,7 +90,7 @@ def main():
         # Classification
         prediction, probabilities = classifier.predict(audio_path, nn_model_graph, nn_model_mapping)
         # save DB
-        db_save_access(os.path.join('DB', 'smartSlamDB.sqlite'), audio_path, prediction)
+        db_save_access(db_sqlite_path, audio_path, prediction)
         # save CSV
         # TODO
 
@@ -106,7 +99,7 @@ def main():
         telegram_bot.notify_sample_audio(audio_path, (prediction, probabilities))
 
         # bot notification: name, prediction and audio file
-        # telegram_bot.notify_sample_audio(audio_path, prediction, 30)
+        # telegram_bot.notify_sample_audio(audio_path, (prediction, probabilities), 30)
 
         # Turn LED OFF
         sound_record.led_off()

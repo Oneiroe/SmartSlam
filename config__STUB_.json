@@ -1,0 +1,12 @@
+{
+  "nn_model_path": "PATH TO .pb TENSOR GRAPH-MODEL FILE",
+  "nn_model_mapping": {
+    "0": "CLASS 1 TO BE RECOGNIZE ACCORDING TO MODEL",
+    "1": "CLASS 2 TO BE RECOGNIZE ACCORDING TO MODEL",
+    "2": "CLASS 3 TO BE RECOGNIZE ACCORDING TO MODEL",
+    "3": "CLASS 4 TO BE RECOGNIZE ACCORDING TO MODEL",
+    "...": "..."
+  },
+  "db_sqlite_path": "PATH TO sqlite DB FILE",
+  "csv_path": "PATH TO LABELS csv FILE"
+}
