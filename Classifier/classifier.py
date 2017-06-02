@@ -5,6 +5,7 @@ import numpy as np
 import os
 import logging
 import subprocess
+from collections import Counter
 
 OS_USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
 
@@ -76,7 +77,7 @@ def predict(audio_path, graph, mapping):
         })
 
         logging.info('predictions:' + str(y_out))
-        return mapping[y_out[0].argmax()]
+        return mapping[y_out[0].argmax()], Counter({mapping[i]: y_out[0][i] for i in range(len(mapping))})
 
 
 @DeprecationWarning

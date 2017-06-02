@@ -6,8 +6,7 @@ import os
 import sqlite3
 import csv
 import subprocess
-import json
-import sys
+from collections import Counter
 
 from RaspberryScripts import sound_record
 from ManagementTelegramBOT import management_telegram_bot as telegram_bot
@@ -96,7 +95,7 @@ def main():
 
         logging.info('Classifying new record...')
         # Classification
-        prediction = classifier.predict(audio_path, nn_model_graph, nn_model_mapping)
+        prediction, probabilities = classifier.predict(audio_path, nn_model_graph, nn_model_mapping)
         # save DB
         db_save_access(os.path.join('DB', 'smartSlamDB.sqlite'), audio_path, prediction)
         # save CSV
@@ -104,7 +103,7 @@ def main():
 
         logging.info('BOT Sending notification of new record classification...')
         # bot notification: name and prediction
-        telegram_bot.notify_sample_audio(audio_path, prediction)
+        telegram_bot.notify_sample_audio(audio_path, (prediction, probabilities))
 
         # bot notification: name, prediction and audio file
         # telegram_bot.notify_sample_audio(audio_path, prediction, 30)

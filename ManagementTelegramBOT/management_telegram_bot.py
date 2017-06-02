@@ -10,6 +10,7 @@ import logging
 import os
 import subprocess
 import threading
+from collections import Counter
 
 #####################
 # SETUP
@@ -47,13 +48,19 @@ def wake_up():
 
 
 def notify_sample_audio(sample_path, prediction='', duration=0):
-    """ Notify the users of a new audio record, optionally send also class prediction and the audio file """
+    """ Notify the users of a new audio record, optionally send also class prediction and the audio file
+    :type prediction: tuple (prediction, probabilities) where the first is a string and the second a Counter dictionary
+    """
     logging.info('New audio sample')
     sample_name = os.path.basename(sample_path)[:-4]
 
     msg = 'New audio record!\nNAME: ' + sample_name
     if prediction:
-        msg += '\nCLASS: ' + prediction
+        msg += '\nCLASS: ' + prediction[0]
+        msg += '\n------------------------------'
+        msg += '\nDETAILS: '
+        for i in prediction[1].most_common():
+            msg += '\n' + "{:.2%}".format(i[1]) + ' ' + i[0]
 
     for user in data['users']:
         logging.info('Sending message notification')
