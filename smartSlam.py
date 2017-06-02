@@ -91,9 +91,7 @@ def main():
         prediction, probabilities = classifier.predict(audio_path, nn_model_graph, nn_model_mapping)
         # save DB
         db_save_access(db_sqlite_path, audio_path, prediction)
-        # save CSV
-        # TODO
-
+        
         logging.info('BOT Sending notification of new record classification...')
         # bot notification: name and prediction
         telegram_bot.notify_sample_audio(audio_path, (prediction, probabilities))

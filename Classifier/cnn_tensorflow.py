@@ -2,6 +2,7 @@ import pandas
 import os
 import librosa
 import csv
+import sqlite3
 import numpy as np
 import random
 import logging
@@ -13,7 +14,36 @@ from tensorflow.contrib.learn.python.learn.estimators import model_fn as model_f
 tf.logging.set_verbosity(tf.logging.INFO)
 
 
-def create_balanced_dataset(targets_mapping, discriminant_targets=[]):
+def load_labels_from_csv(csv_path, targets_mapping):
+    """ Loads the dataset files with relative labels from the given CSV file """
+    logging.info('Loading samples and Labels from CSV (', csv_path, ')...')
+    labels = dict()  # key: label, value: set of mapped samples
+    samples = dict()  # key: sample, value: label
+    with open(csv_path, 'r', newline='') as csvfile:
+        for record in csv.reader(csvfile):
+            if record[1] not in targets_mapping.keys():
+                continue
+            labels.setdefault(record[1], set()).add(record[0])
+            samples[record[0]] = record[1]
+    return labels, samples
+
+
+def load_labels_from_db(db_path, targets_mapping):
+    """ Loads the dataset files with relative labels from the given SQLite DB """
+    logging.info('Loading samples and Labels from DB (', db_path, ')...')
+    labels = dict()  # key: label, value: set of mapped samples
+    samples = dict()  # key: sample, value: label
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        for record in c.execute("SELECT name,label FROM accesses WHERE label IN ({seq})".format(
+                seq=','.join(['?'] * len(targets_mapping))), list(targets_mapping.keys())).fetchall():
+            labels.setdefault(record[1], set()).add(record[0])
+            samples[record[0]] = record[1]
+
+    return labels, samples
+
+
+def create_balanced_dataset(targets_mapping, data_source_path, discriminant_targets=[]):
     """ Load samples and relative label randomly, such to have a balanced number of entity for each label
 
     :param targets_mapping:
@@ -27,14 +57,12 @@ def create_balanced_dataset(targets_mapping, discriminant_targets=[]):
     directory = os.path.join('DB', 'Samples')
     labels_path = os.path.join('DB', 'Samples', 'labels.csv')
 
-    labels = dict()  # key: label, value: set of mapped samples
-    samples = dict()  # key: sample, value: label
-    with open(labels_path, 'r', newline='') as csvfile:
-        for record in csv.reader(csvfile):
-            if record[1] not in targets_mapping.keys():
-                continue
-            labels.setdefault(record[1], set()).add(record[0])
-            samples[record[0]] = record[1]
+    if os.path.basename(data_source_path).split('.')[-1] == 'sqlite':
+        labels, samples = load_labels_from_db(os.path.join('DB', 'smartSlamDB.sqlite'), targets_mapping)
+    elif os.path.basename(data_source_path).split('.')[-1] == 'csv':
+        labels, samples = load_labels_from_csv(labels_path, targets_mapping)
+    else:
+        raise Exception('Label file not recognized')
 
     inv_target_mapping = Counter(set(targets_mapping.values()))
     for key, value in labels.items():
@@ -310,7 +338,10 @@ def model(features, labels, mode, params):
 
 
 def train(ds, model_name, mapping):
-    """ Train with the given dataset recognizing of door/not-door """
+    """ Train a model with the given name and mapping with the given dataset.
+
+    If model is already existing the training will continue from the previous status.
+    """
     logging.info('Training')
     # Divide the dataset in training/testing/validation sets
     # dataset proportion
