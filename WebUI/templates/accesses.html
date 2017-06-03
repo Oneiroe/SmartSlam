@@ -56,7 +56,13 @@
 		        </form>
                          </tr> </table>
                 </td>
-                <td><a href="{{ url_for('play',name=item.name) }}">Play </a> &nbsp &nbsp &nbsp<a href="{{ url_for('download',name=item.name) }}">Download</a> </td>
+                 <td>
+                            {% if item.present %}
+                            <a href="{{ url_for('play',name=item.name) }}">Play </a> &nbsp &nbsp &nbsp<a href="{{ url_for('download',name=item.name) }}">Download</a>
+                     {% else %} <h5> File no longer available</h5>
+                 </td>
+
+                {% endif %}
 
 
             </tr>

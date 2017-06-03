@@ -8,18 +8,8 @@
         <br/>
         <br/>
         <br/>
-        <form action="{{ url_for('new_task') }}" method=post class=new_task>
-        <label>Add label:</label>
-			<input type="text"  name="name">
-            <input class="button" type="submit" value="Save">
-		</form>
-        {% for message in get_flashed_messages() %}
-			<div class=flash>
-			{{ message }}
-            </div>
-		{% endfor %}
-		<br/>
-        <br/>
+
+
         <h3>Labels :</h3>
 
         <table id="example" class="display compact" cellspacing="0" width="100%">
@@ -40,7 +30,7 @@
 
             <tr>
                 <td>{{ item.label }}</td>
-                <td><a href="{{ url_for('delete_entry', label=item.label) }}">Delete</a></td>
+
 
             </tr>
 
