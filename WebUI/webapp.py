@@ -1,16 +1,30 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from  flask import *
 import sqlite3
 from functools import wraps
 import hashlib
-import os.path
+import logging
+import os
+import subprocess
 
-DATABASE= '/home/robotto/SmartSlam/DB/smartSlamDB.sqlite'
-DATABASEUSERS='/home/vanessa/SmartSlam/users.db'
-app=Flask(__name__)
+OS_USER = subprocess.check_output(["whoami"], universal_newlines=True).splitlines()[0]
+DATABASE = '/home/' + OS_USER + '/SmartSlam/DB/smartSlamDB.sqlite'
+DATABASEUSERS = '/home/' + OS_USER + '/SmartSlam/WebUI/users.db'
+app = Flask(__name__)
 app.config.from_object(__name__)
 
 app.secret_key='my_precious'
+
+log_dir = '/home/' + OS_USER + '/SmartSlam/WebUI/LOG/'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+logging.basicConfig(filename='/home/' + OS_USER + '/SmartSlam/WebUI/LOG/INFO.log',
+                    level=logging.INFO,
+                    format='%(asctime)-15s '
+                           '%(levelname)s '
+                           '--%(filename)s-- '
+                           '%(message)s')
+
 
 def connect_db():
     return sqlite3.connect(app.config['DATABASE'])
