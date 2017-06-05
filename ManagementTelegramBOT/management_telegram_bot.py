@@ -3,6 +3,8 @@
 import sys
 import time
 import telepot
+from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
+from telepot.loop import MessageLoop
 import requests
 import json
 import signal
@@ -10,6 +12,7 @@ import logging
 import os
 import subprocess
 import threading
+import sqlite3
 from collections import Counter
 
 #####################
@@ -22,6 +25,18 @@ with open(DATA) as file:
     data = json.load(file)
     data['known_clients'] = set(data['known_clients'])
     bot = telepot.Bot(data['telegram_bot'])
+
+
+def db_save_access(db_path, audio_path, label='default'):
+    """ Create a new entry into DB of the given audio or update it if already existing. """
+    logging.info('Insert record into DB...')
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        name = os.path.basename(audio_path)[:-4]
+        timestamp = name.strip('sample-')
+        c.execute('INSERT OR REPLACE INTO `accesses`(`timestamp`,`name`,`label`,`path`) VALUES(?,?,?,?)',
+                  (timestamp, name, label, audio_path))
+        conn.commit()
 
 
 #########################
@@ -42,13 +57,14 @@ def wake_up():
     :return: message to be shown containing the global IP
     """
     logging.info('Waking Up...')
-    ip = get_ip()
-    msg = 'Goooood morning Vietnam! Find me at: ' + str(ip)
+    ip = str(get_ip(), 'utf-8')
+    msg = 'Goooood morning Vietnam! Find me at: ' + ip
     return msg
 
 
 def notify_sample_audio(sample_path, prediction='', duration=0):
     """ Notify the users of a new audio record, optionally send also class prediction and the audio file
+    :type sample_path: audio sample path
     :type prediction: tuple (prediction, probabilities) where the first is a string and the second a Counter dictionary
     """
     logging.info('Notifying user of new audio sample (', sample_path, ')...')
@@ -62,6 +78,9 @@ def notify_sample_audio(sample_path, prediction='', duration=0):
         msg += '\nDETAILS: '
         for i in prediction[1].most_common():
             msg += '\n' + "{:.2%}".format(i[1]) + ' ' + i[0]
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text='Rectify classification?',
+                                                   callback_data='/rectify')]])
 
     for user in data['users']:
         logging.info('Sending message notification')
@@ -70,7 +89,8 @@ def notify_sample_audio(sample_path, prediction='', duration=0):
                 logging.info('Sending audio file in another thread')
                 threading.Thread(target=bot.sendVoice, args=(user, bit_file, msg, duration)).start()
         else:
-            bot.sendMessage(user, msg)
+            # TODO like this if only msg is send without prediction errors arise
+            bot.sendMessage(user, msg, reply_markup=keyboard)
 
 
 #########################
@@ -124,6 +144,7 @@ def get_ip():
 #########################
 # BOT LOGIC
 def handle(msg):
+    """ Reaction to an explicit command by the user """
     chat_id = msg['chat']['id']
     command = msg['text']
 
@@ -134,9 +155,50 @@ def handle(msg):
         return
 
     if command == '/get_ip' or command == '/get_ip@RaspSemBot':
-        bot.sendMessage(chat_id, get_ip())
+        ip = str(get_ip(), 'utf-8')
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text='Go to WebUI', url=ip)]]
+        )
+        bot.sendMessage(chat_id, ip, reply_markup=keyboard)
     else:
         bot.sendMessage(chat_id, 'Comando non riconoscuto')
+
+
+def on_callback(msg):
+    """  Reaction to an interaction with an InLineKeyboard """
+    query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
+    logging.info('Got Callback Query:' + str(query_id) + ' Command:' + query_data + ' From ChatID:' + str(from_id))
+
+    # SWITCH/CASE to identify the call and respond consequently
+    if query_data == '/rectify':
+        options = [i.split('% ')[1] for i in
+                   msg['message']['text'].split('\n')[msg['message']['text'].split('\n').index('DETAILS: ') + 1:]]
+        options_buttons = [[InlineKeyboardButton(text=i, callback_data='/rectify_' + i)] for i in options]
+        options_buttons.append([InlineKeyboardButton(text='<< Go back', callback_data='/back')])
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=options_buttons)
+        bot.editMessageReplyMarkup((from_id, msg['message']['message_id']), reply_markup=keyboard)
+    elif '/rectify_' in query_data:
+        rectified_classification = query_data[len('/rectify_'):]
+        new = msg['message']['text'].split('\n')
+        new[2] = 'UPDATED: ' + rectified_classification
+        new_message = ''.join('%s\n' % i for i in new)
+
+        sample_name = new[1][6:] + '.wav'
+        db_save_access(os.path.join(data['db_path'], 'smartSlamDB.sqlite'),
+                       os.path.join(data['db_path'], 'Samples', sample_name),
+                       rectified_classification)
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text='Rectify classification?', callback_data='/rectify')]]
+        )
+        bot.editMessageText((from_id, msg['message']['message_id']), new_message, reply_markup=keyboard)
+
+    elif query_data == '/back':
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text='Rectify classification?', callback_data='/rectify')]]
+        )
+        bot.editMessageReplyMarkup((from_id, msg['message']['message_id']), reply_markup=keyboard)
 
 
 def main():
@@ -165,7 +227,8 @@ def main():
     # STARTING WAITING CYCLE
     logging.info('STARTING LISTENING loop')
 
-    bot.message_loop(handle)
+    MessageLoop(bot, {'chat': handle,
+                      'callback_query': on_callback}).run_as_thread()
     while 1:
         time.sleep(10)
 
